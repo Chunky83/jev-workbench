@@ -23,6 +23,12 @@ class GitIdentityTests(unittest.TestCase):
         reason = check_git_identity.unsafe_reason("noreply@users.noreply.github.com")
         self.assertIn("another account", reason)
 
+    def test_rejects_shared_contributors_address(self):
+        reason = check_git_identity.unsafe_reason(
+            "contributors@users.noreply.github.com"
+        )
+        self.assertIn("not tied", reason)
+
     def test_rejects_unfinished_placeholder(self):
         reason = check_git_identity.unsafe_reason(
             "YOUR_ID+Example@users.noreply.github.com"
