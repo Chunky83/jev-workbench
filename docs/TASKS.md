@@ -10,7 +10,8 @@ Updated September 19, 2026 for the public 0.1.0 baseline.
 
 ## Next
 
-- [ ] Simplify navigation between the overview, four editors, connections, and incoming proposals.
+- [x] Make the four editors primary and separate sharing, setup, and review into focused in-window panels.
+- [ ] Validate the simplified workflow with a first-time user and unify case selection/history.
 - [ ] Test ChatGPT account-side setup and its complete proposal/result workflow.
 - [ ] Connect the four-world fixtures to the desktop workflow.
 - [ ] Validate the Apple Silicon package on a real Mac: first launch, local checks, saved cases, and both themes.

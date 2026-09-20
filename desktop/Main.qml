@@ -42,20 +42,33 @@ ApplicationWindow {
     function openInbox() { inboxPopup.open(); workbench.refreshInbox() }
     property bool loading: true
     property bool dirty: false
-    property bool guidedMode: Qt.application.arguments.indexOf("--ui-smoke") < 0 && Qt.application.arguments.indexOf("--capture-question") < 0 && Qt.application.arguments.indexOf("--capture-model") < 0 && Qt.application.arguments.indexOf("--capture-dropdown") < 0
     property int expanded: -1
-    property string resultKind: "Welcome"
+    property string resultKind: "Ready"
     property string rawOutput: ""
-    property string summaryOutput: "Open a saved test, or start with Guest access.\n\n1. Run local checks to test a synthetic HTTP fixture.\n2. Use collected evidence to place the fresh observations in State.\n3. Preview the exact request.\n4. Choose Live Jev when you want to send it.\n\nLocal checks do not contact your website or TypeSafe."
+    property string summaryOutput: "Ready to check Guest access.\n\nRun sample checks below for observed results. No account or API key is needed. This is a synthetic fixture, not a check of a real project."
     property var collected: null
     property int resultView: 0
     property string errorMessage: ""
     // Published model and aliases: https://docs.typesafe.ai/models
     property var publishedModels: ["jev-latest", "jev-1.13.0", "jev-preview"]
 
-    function openActivity() { connectionPanel.activity() }
-    function reviewProposal() { connectionPanel.review() }
-    function openConnections() { connectionPanel.connections(); workbench.workflow("status") }
+    property var returnFocus: null
+    property var workflowData: JSON.parse(workbench.workflowView)
+    property var editorShared: workflowData.case || null
+    property var integration: workflowData.integration || ({})
+    property var lastClaudeCall: (integration.activity || []).find(x => x.host === "claude") || null
+    property bool claudeConfigured: (integration.profiles || []).some(x => x.configured)
+    property string assistantLabel: lastClaudeCall ? "Claude activity received" : claudeConfigured ? "Claude setup saved" : "Set up Claude"
+    property string sharingLabel: {
+        const hosts = editorShared ? editorShared.shared_with.filter(x => x !== "preview") : []
+        return hosts.length ? "Shared with " + hosts.join(", ") + (dirty ? "; saved copy only" : "") : "Not shared with assistants"
+    }
+    function rememberFocus() { if (!connectionPanel.visible) returnFocus = root.activeFocusItem }
+    function openActivity() { rememberFocus(); connectionPanel.activity() }
+    function reviewProposal() { rememberFocus(); connectionPanel.review() }
+    function openConnections() { rememberFocus(); connectionPanel.connections(); workbench.workflow("status") }
+    function openSharing() { rememberFocus(); connectionPanel.sharing(); workbench.workflow("status") }
+    function startSample() { if (!root.dirty || workbench.confirmDiscard()) workbench.previewFixture() }
     function showWorkflowResults(view) {
         const result = {case: view.case, records: view.records || ({})}
         root.rawOutput = JSON.stringify(result, null, 2)
@@ -63,7 +76,6 @@ ApplicationWindow {
         root.resultKind = "Assistant workflow"
         root.collected = null
         root.resultView = 0
-        root.guidedMode = false
     }
     function markDirty() { if (!loading) dirty = true }
     function document() {
@@ -88,7 +100,11 @@ ApplicationWindow {
         instructionsPane.text = value.instructions
         repetitions.currentIndex = value.runner ? value.runner.iterations - 1 : 0
         collected = null
+        resultKind = "Ready"
+        rawOutput = ""
+        summaryOutput = "Ready to check " + value.title + ".\n\nRun sample checks below, or share the saved case with an assistant. Local checks use a synthetic fixture; they do not test a real project."
         loading = false; dirty = false
+        Qt.callLater(function() { statePane.showStart(); primitivesPane.showStart(); instructionsPane.showStart() })
     }
     function save(asNew) { let text = document(); if (text) workbench.saveCase(text, asNew) }
     function addQuestion(kind) {
@@ -151,7 +167,7 @@ ApplicationWindow {
             if (view.demo_folder) root.reviewProposal()
         }
         function onWorkflowRunFinished(text) { root.showWorkflowResults(JSON.parse(text)) }
-        function onCaseLoaded(text) { root.loadCase(text) }
+        function onCaseLoaded(text) { root.loadCase(text); workbench.clearIncomingReview(); connectionPanel.close() }
         function onSaved() { root.dirty = false; workbench.workflow("status") }
         function onFailed(text) { root.showError(text) }
         function onOutputReady(text, kind) {
@@ -175,73 +191,46 @@ ApplicationWindow {
     Shortcut { sequence: StandardKey.Save; enabled: !workbench.busy; onActivated: root.save(false) }
     Shortcut { sequence: StandardKey.Open; enabled: !workbench.busy; onActivated: { if (!dirty || workbench.confirmDiscard()) workbench.openCase() } }
     Shortcut { sequence: "Ctrl+Return"; enabled: !workbench.busy; onActivated: runButton.clicked() }
-    Shortcut { sequence: "Escape"; onActivated: root.expanded = -1 }
+    Shortcut { sequence: "Escape"; onActivated: { if (connectionPanel.visible) connectionPanel.close(); else root.expanded = -1 } }
 
     ColumnLayout {
-        anchors.fill: parent; anchors.margins: 18; spacing: 12
+        anchors.fill: parent; anchors.margins: 18; spacing: 10
         RowLayout {
-            Layout.fillWidth: true; spacing: 18
-            Text { text: "Jev Workbench"; color: root.colors.ink; font.family: "Segoe UI"; font.pixelSize: 29; font.weight: Font.Black }
-            Text { text: "v" + Application.version; color: root.colors.muted; font.pixelSize: 13; Layout.fillWidth: true }
-            BlockButton { colors: root.colors; text: root.guidedMode ? "Advanced editor" : "Overview"; onClicked: root.guidedMode = !root.guidedMode }
+            Layout.fillWidth: true; spacing: 12
+            Text { text: "Jev Workbench"; color: root.colors.ink; font.family: "Segoe UI"; font.pixelSize: 25; font.weight: Font.Bold }
+            Text { text: "v" + Application.version; color: root.colors.muted; font.pixelSize: 12; Layout.fillWidth: true }
             BlockButton { objectName: "inboxButton"; colors: root.colors; primary: workbench.pendingCount > 0; text: "Inbox (" + workbench.pendingCount + ")"; onClicked: root.openInbox() }
-            BlockButton { colors: root.colors; text: "Connect assistants"; enabled: !workbench.busy; onClicked: root.openConnections() }
-            Text { visible: !root.guidedMode && root.width > 1200; text: workbench.keyAvailable ? "TypeSafe key ready" : "TypeSafe key not set"; color: root.colors.muted; font.pixelSize: 12 }
+            BlockButton { objectName: "assistantSetupButton"; colors: root.colors; text: root.assistantLabel; enabled: !workbench.busy; onClicked: root.openConnections() }
             ThemeComboBox {
-                colors: root.colors
-                id: themePicker; model: ["Light", "Night Shift", "System"]
+                colors: root.colors; id: themePicker; model: ["Light", "Night Shift", "System"]
                 currentIndex: workbench.theme === "Dark" ? 1 : workbench.theme === "Light" ? 0 : 2
                 onActivated: workbench.theme = currentIndex === 1 ? "Dark" : currentText
                 Accessible.name: "Color theme"
-                palette.window: root.colors.surface; palette.base: root.colors.surface
-                palette.button: root.colors.surface; palette.text: root.colors.ink; palette.buttonText: root.colors.ink
             }
         }
         RowLayout {
-            visible: !root.guidedMode
             Layout.fillWidth: true; spacing: 10
-            Text { text: "Test"; color: root.colors.ink; font.bold: true }
+            Text { text: "Case"; color: root.colors.ink; font.bold: true }
             TextField {
-                id: testTitle; Layout.preferredWidth: 230; color: root.colors.ink
-                onTextEdited: root.markDirty(); enabled: !workbench.busy
+                id: testTitle; objectName: "caseTitle"; Layout.fillWidth: true; Layout.minimumWidth: 160
+                color: root.colors.ink; onTextEdited: root.markDirty(); enabled: !workbench.busy
                 background: Rectangle { color: root.colors.surface; border.color: root.colors.border; border.width: 2 }
-                Accessible.name: "Test name"
+                Accessible.name: "Case name"
             }
-            Text { text: dirty ? "Unsaved edits" : workbench.caseFolder ? "Saved / unchanged" : "New test"; color: root.colors.muted; font.pixelSize: 12; Layout.fillWidth: true }
-            Text { text: "Model"; color: root.colors.ink }
-            ThemeComboBox {
-                id: modelSelector; objectName: "modelSelector"
-                colors: root.colors; Layout.preferredWidth: 170
-                model: root.publishedModels
-                onActivated: root.markDirty(); enabled: !workbench.busy
-                Accessible.name: "Jev model"
-            }
-            BlockButton { id: questionButton; objectName: "questionButton"; colors: root.colors; text: "+ Question"; enabled: !workbench.busy; onClicked: questionMenu.popup(questionButton, 0, questionButton.height + 4) }
+            BlockButton { colors: root.colors; text: "Open case"; enabled: !workbench.busy; onClicked: { if (!root.dirty || workbench.confirmDiscard()) workbench.openCase() } }
+            BlockButton { objectName: "saveCaseButton"; colors: root.colors; text: "Save case"; enabled: !workbench.busy; onClicked: root.save(false) }
+            BlockButton { objectName: "shareCaseButton"; colors: root.colors; text: "Share case"; enabled: !workbench.busy; onClicked: root.openSharing() }
+            BlockButton { objectName: "newSampleButton"; colors: root.colors; text: "New sample"; enabled: !workbench.busy; onClicked: root.startSample() }
         }
-        Rectangle {
-            visible: root.guidedMode; Layout.fillWidth: true; Layout.fillHeight: true
-            color: root.colors.surface; border.color: root.colors.border; border.width: 2
-            ColumnLayout {
-                anchors.centerIn: parent; width: Math.min(parent.width - 64, 820); spacing: 22
-                Text { text: "What would you like to check?"; font.pixelSize: 30; font.bold: true; color: root.colors.ink; Layout.fillWidth: true; wrapMode: Text.Wrap }
-                Text { text: "Connect an assistant to bring selected evidence into Workbench. You review its proposal, approve a check, and see what actually passed."; font.pixelSize: 18; color: root.colors.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
-                RowLayout {
-                    spacing: 14
-                    BlockButton { colors: root.colors; primary: true; text: "Connect an assistant"; enabled: !workbench.busy; onClicked: root.openConnections() }
-                    BlockButton { colors: root.colors; text: "Try a sample"; enabled: !workbench.busy && !root.dirty; onClicked: workbench.previewFixture() }
-                    BlockButton { colors: root.colors; text: "Open a saved test"; enabled: !workbench.busy; onClicked: { if (!root.dirty || workbench.confirmDiscard()) { root.guidedMode = false; workbench.openCase() } } }
-                }
-                Text { text: "The sample is saved for you and needs no account or API key. It checks a synthetic guest-access example on this computer."; color: root.colors.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
-                BlockButton { colors: root.colors; text: "Activity and diagnostics"; enabled: !workbench.busy; onClicked: root.openActivity() }
-                Text { text: "Your workflow"; font.pixelSize: 20; font.bold: true; color: root.colors.ink }
-                Text { text: "1. Connect • discover your assistant and approve setup.\n2. Share • choose the saved evidence the assistant can access.\n3. Review • approve a specific check, then read its result."; font.pixelSize: 16; lineHeight: 1.5; color: root.colors.ink; Layout.fillWidth: true; wrapMode: Text.Wrap }
-                Text { text: "Current preview: synthetic checks only. Real-project checks and automatic ChatGPT setup are still to come."; color: root.colors.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
-                BlockButton { colors: root.colors; text: "Review proposals and results"; visible: !!workbench.caseFolder; enabled: !workbench.busy; onClicked: { root.reviewProposal(); workbench.workflow("status") } }
-            }
+        RowLayout {
+            Layout.fillWidth: true
+            Text { objectName: "caseContext"; text: (root.dirty ? "Unsaved edits" : workbench.caseFolder ? "Saved" : "Sample draft") + "  ·  " + root.sharingLabel; color: root.colors.muted; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideRight }
+            BlockButton { id: questionButton; objectName: "questionButton"; colors: root.colors; text: "Add question"; implicitHeight: 30; enabled: !workbench.busy; onClicked: questionMenu.popup(questionButton, 0, questionButton.height + 4) }
         }
+        RowLayout {
+            Layout.fillWidth: true; Layout.fillHeight: true; spacing: 12
         SplitView {
-            visible: !root.guidedMode
-            id: verticalSplit; orientation: Qt.Vertical
+            id: verticalSplit; objectName: "workspaceEditors"; orientation: Qt.Vertical
             Layout.fillWidth: true; Layout.fillHeight: true
             handle: Rectangle { implicitHeight: 10; color: root.colors.background
                 Rectangle { width: 32; height: 3; color: root.colors.muted; anchors.centerIn: parent } }
@@ -257,7 +246,7 @@ ApplicationWindow {
                     footer: "Facts and observations. Keep secrets out of evidence."
                     SplitView.preferredWidth: verticalSplit.width / 2; SplitView.minimumWidth: 260
                     visible: root.expanded < 0 || root.expanded === 0
-                    expanded: root.expanded === 0; readOnly: workbench.busy
+                    expanded: root.expanded === 0; enabled: !workbench.busy
                     onEdited: root.markDirty(); onMaximize: root.expanded = expanded ? -1 : 0
                 }
                 EditorPane {
@@ -265,7 +254,7 @@ ApplicationWindow {
                     footer: "Edit the options Jev evaluates. Each question is independent."
                     SplitView.fillWidth: true; SplitView.minimumWidth: 260
                     visible: root.expanded < 0 || root.expanded === 1
-                    expanded: root.expanded === 1; readOnly: workbench.busy
+                    expanded: root.expanded === 1; enabled: !workbench.busy
                     onEdited: root.markDirty(); onMaximize: root.expanded = expanded ? -1 : 1
                 }
             }
@@ -280,17 +269,17 @@ ApplicationWindow {
                     footer: "Common directions, added to each question. Plain language."
                     SplitView.preferredWidth: verticalSplit.width / 2; SplitView.minimumWidth: 260
                     visible: root.expanded < 0 || root.expanded === 2
-                    expanded: root.expanded === 2; readOnly: workbench.busy
+                    expanded: root.expanded === 2; enabled: !workbench.busy
                     onEdited: root.markDirty(); onMaximize: root.expanded = expanded ? -1 : 2
                 }
                 ColumnLayout {
                     visible: root.expanded < 0 || root.expanded === 3
                     SplitView.fillWidth: true; SplitView.minimumWidth: 260; spacing: 6
                     RowLayout {
-                        BlockButton { colors: root.colors; text: "Summary"; primary: root.resultView === 0; implicitHeight: 30; onClicked: root.resultView = 0 }
-                        BlockButton { colors: root.colors; text: "Raw JSON"; primary: root.resultView === 1; implicitHeight: 30; onClicked: root.resultView = 1 }
+                        BlockButton { colors: root.colors; text: "Summary"; primary: root.resultView === 0; implicitHeight: 30; implicitWidth: 80; onClicked: root.resultView = 0 }
+                        BlockButton { colors: root.colors; text: "Raw JSON"; primary: root.resultView === 1; implicitHeight: 30; implicitWidth: 86; onClicked: root.resultView = 1 }
                         Item { Layout.fillWidth: true }
-                        BlockButton { colors: root.colors; text: "History"; implicitHeight: 30; enabled: !workbench.busy; onClicked: workbench.history() }
+                        BlockButton { colors: root.colors; text: "Local runs"; implicitHeight: 30; implicitWidth: 92; enabled: !workbench.busy; onClicked: workbench.history() }
                     }
                     EditorPane {
                         id: resultsPane; colors: root.colors; dark: root.dark; syntaxLanguage: root.resultView === 1 ? "json" : "log"; title: "RESULTS"; subtitle: root.resultKind
@@ -307,10 +296,23 @@ ApplicationWindow {
                 }
             }
         }
-        Text { text: workbench.connectorStatus; color: root.colors.muted; Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 12 }
+        ConnectionPanel {
+            id: connectionPanel; colors: root.colors; editorDirty: root.dirty
+            Layout.preferredWidth: Math.min(460, root.width * 0.38)
+            Layout.fillHeight: true
+            onDismissed: { if (root.returnFocus) root.returnFocus.forceActiveFocus(Qt.OtherFocusReason) }
+            onSaveRequested: root.save(false)
+            onSampleRequested: root.startSample()
+            onOpenInboxRequested: { connectionPanel.close(); root.openInbox() }
+            onUseState: function(state) {
+                if (root.dirty) { root.showError("Save your edits before accepting incoming state."); return }
+                statePane.text = JSON.stringify(state, null, 2); root.markDirty(); connectionPanel.close()
+            }
+            onShowResults: function(view) { root.showWorkflowResults(view); connectionPanel.close() }
+        }
+        }
         Text { text: workbench.status; color: root.colors.muted; Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 12 }
         Rectangle {
-            visible: !root.guidedMode
             Layout.fillWidth: true; Layout.preferredHeight: 72
             color: root.colors.heading; border.color: root.colors.border; border.width: 2
             RowLayout {
@@ -322,10 +324,16 @@ ApplicationWindow {
                 }
                 ThemeComboBox {
                     colors: root.colors
-                    id: runMode; objectName: "runMode"; model: ["Local checks", "Live Jev"]; enabled: !workbench.busy
+                    id: runMode; objectName: "runMode"; model: ["Sample checks", "Jev assessment"]; enabled: !workbench.busy
                     Accessible.name: "Run mode"
                     palette.window: root.colors.surface; palette.base: root.colors.surface; palette.button: root.colors.surface
                     palette.text: root.colors.ink; palette.buttonText: root.colors.ink
+                }
+                ThemeComboBox {
+                    id: modelSelector; objectName: "modelSelector"; colors: root.colors
+                    Layout.preferredWidth: 145; model: root.publishedModels
+                    visible: runMode.currentIndex === 1; enabled: !workbench.busy
+                    onActivated: root.markDirty(); Accessible.name: "Jev model"
                 }
                 ThemeComboBox {
                     colors: root.colors
@@ -336,7 +344,7 @@ ApplicationWindow {
                 }
                 BlockButton { colors: root.colors; text: "Preview request"; enabled: !workbench.busy; onClicked: { let text = root.document(); if (text) workbench.preview(text) } }
                 BlockButton {
-                    id: runButton; objectName: "runButton"; colors: root.colors; primary: true; text: workbench.busy ? "Stop" : "Run test"
+                    id: runButton; objectName: "runButton"; colors: root.colors; primary: true; text: workbench.busy ? "Stop" : (runMode.currentIndex === 0 ? "Run sample checks" : "Ask Jev")
                     onClicked: {
                         if (workbench.busy) workbench.cancel()
                         else { let text = root.document(); if (text) workbench.evaluate(text, runMode.currentIndex === 0 ? "local" : "live") }
@@ -381,17 +389,6 @@ ApplicationWindow {
             Text { text: root.inboxData.notice || ""; visible: text.length > 0; color: root.colors.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
         }
     }
-    ConnectionPanel {
-        id: connectionPanel; colors: root.colors; editorDirty: root.dirty
-        onOpenInboxRequested: { connectionPanel.close(); root.openInbox() }
-        onUseState: function(state) {
-            if (root.dirty) { root.showError("Save your edits before accepting incoming state."); return }
-            statePane.text = JSON.stringify(state, null, 2); root.markDirty(); connectionPanel.close()
-        }
-        onShowResults: function(view) {
-            root.showWorkflowResults(view); connectionPanel.close()
-        }
-    }
     Menu {
         id: actionsMenu
         palette.window: root.colors.surface; palette.text: root.colors.ink
@@ -401,7 +398,10 @@ ApplicationWindow {
         MenuItem { text: "Save as..."; onTriggered: root.save(true) }
         MenuSeparator {}
         MenuItem { text: "Show files"; onTriggered: workbench.showFolder() }
-        MenuItem { text: "Connections and proposals..."; onTriggered: root.openConnections() }
+        MenuItem { text: "Assistant setup..."; onTriggered: root.openConnections() }
+        MenuItem { text: "Share saved case..."; onTriggered: root.openSharing() }
+        MenuItem { text: "Evidence from assistant..."; onTriggered: { root.rememberFocus(); connectionPanel.open(); connectionPanel.showEvidence() } }
+        MenuItem { text: "Activity and diagnostics..."; onTriggered: root.openActivity() }
         MenuItem { text: "API settings..."; onTriggered: keyDialog.open() }
     }
     Menu {

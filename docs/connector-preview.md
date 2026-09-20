@@ -4,37 +4,41 @@ This preview supports a local desktop workflow. Its source is public; saved case
 client settings, and credentials remain local. Connection setup and execution
 require explicit approval.
 
-## Guided preview
+## Desktop workflow
 
-Launch the current packaged executable with `--local-preview`; see [the workspace map](../WORKSPACE.md).
-Keep the package in place after connecting: the connection uses its runtime location.
-The preview uses a separate application data/settings namespace from the regular launch.
+Launch the current package with `--local-preview`; see [the workspace map](../WORKSPACE.md).
+Keep its runtime folder in place after connecting. The four-pane workspace is
+the default. Sharing and setup have separate in-window panels.
 
-For an account-free sample, choose **Try a sample** on the overview. Workbench saves the
-sample automatically and opens the review. Approve the synthetic check once, then open
-its results. This does not connect an assistant or test a real project.
+For an account-free example, choose **New sample**. Workbench saves the sample
+and opens its proposed check for review. Approve it once and inspect Results.
+This is a synthetic fixture, not a real-project check.
 
 For Claude on Windows:
 
-1. Choose **Connect assistants**. Workbench checks conventional and Microsoft Store profiles.
-2. Select the profile if more than one appears. Choose **Review setup**.
-3. Read the change summary and target, then choose **Approve setup**. Existing settings are
-   preserved and a backup is created. No case is shared by setup.
-4. Quit and reopen Claude when ready. Ask it to list your Jev Workbench cases, then select
-   **Check connection** here. The app reports successful tool activity with its timestamp;
-   it does not verify account identity or claim a live connection from saved settings.
-5. Use the sample or save a test. Select Claude and choose **Share saved snapshot**.
-6. Ask Claude to read the case, submit evidence and propose a `guest_access_fixture` check.
-   Workbench automatically shows the proposal in **Inbox**, even if another case is open. Choose **Review proposal**, inspect its scope, then approve it to run. The result appears in the same review.
+1. Use the Claude setup/activity button. Choose a profile if more than one is
+   found, then **Review Claude setup** and **Approve setup**. Other settings are
+   preserved, a backup is created, and no case is shared by setup.
+2. Fully quit and reopen Claude. Copy/send the connection test in a new Claude
+   conversation, then choose **Check for Claude request**. Recorded activity does
+   not verify account identity or guarantee current availability.
+3. Choose **Share case** in the main workspace. Save edits, select Claude, and
+   choose **Share saved case**. The panel reports who has access.
+4. Use **Copy request for Claude** and send it. This names the exact case and asks
+   for a proposal without an evaluation or execution.
+5. Workbench shows the proposal in **Inbox** automatically, including proposals
+   for a different case. Review its exact scope in the side panel and approve the
+   check. The observed outcome appears in both review and Results.
+6. Ask Claude to read its result. Completed Workbench checks do not wake idle
+   conversations automatically.
 
-Unsaved editor changes are never shared. Incoming state is a proposal: accepting it changes
-the editor; save and share again to update the assistant's snapshot. Previous proposals and
-results stay in history. A new run requires a new proposal. Revocation removes case access.
+Unsaved edits are never shared. Accepting incoming state changes the editor;
+save and share it to update the assistant's copy. Existing approvals cannot be
+reused. Case revocation removes assistant access.
 
-Advanced options contain the manual launch configuration, TypeSafe allowance and explicit
-undo for the last applied Claude setup. Undo stops if Claude settings changed afterwards.
-Close/cancel never grants setup approval. No passwords, session tokens or provider inference
-keys are needed for local Claude setup.
+Optional Jev allowance is in Share case. Manual launch configuration and reviewed
+undo are under **Technical setup and undo** in Assistant setup. Undo refuses to
+overwrite later settings changes. Closing the panel grants no approval.
 
 ## Supported connection setup
 

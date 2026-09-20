@@ -1,6 +1,9 @@
 #include "Workbench.h"
 #include <QApplication>
 #include <QIcon>
+#include <QFont>
+#include <QClipboard>
+#include <QKeyEvent>
 #include <cstdio>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -21,11 +24,14 @@
 int main(int argc, char *argv[]) {
     QQuickStyle::setStyle("Basic");
     QApplication app(argc, argv);
+#ifdef Q_OS_WIN
+    app.setFont(QFont("Segoe UI", 10));
+#endif
     app.setWindowIcon(QIcon(":/icons/jev-workbench.png"));
     app.setOrganizationName("JevWorkbench");
     app.setApplicationName(app.arguments().contains("--local-preview") ? "Jev Workbench Preview" : "Jev Workbench");
     app.setApplicationVersion(JEV_VERSION);
-    if (app.arguments().contains("--ui-smoke") || app.arguments().contains("--workflow-ui-smoke") || app.arguments().contains("--sharing-ui-smoke") || app.arguments().contains("--setup-ui-smoke") || app.arguments().contains("--diagnostics-ui-smoke") || app.arguments().contains("--inbox-ui-smoke")) QStandardPaths::setTestModeEnabled(true);
+    if (app.arguments().contains("--workspace-ui-smoke") || app.arguments().contains("--ui-smoke") || app.arguments().contains("--workflow-ui-smoke") || app.arguments().contains("--sharing-ui-smoke") || app.arguments().contains("--setup-ui-smoke") || app.arguments().contains("--diagnostics-ui-smoke") || app.arguments().contains("--inbox-ui-smoke")) QStandardPaths::setTestModeEnabled(true);
     Workbench workbench;
     if (app.arguments().contains("--smoke-test")) return workbench.smokeCheck() ? 0 : 1;
     QQmlApplicationEngine engine;
@@ -33,6 +39,10 @@ int main(int argc, char *argv[]) {
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app, [] { QCoreApplication::exit(1); }, Qt::QueuedConnection);
     engine.loadFromModule("JevWorkbench", "Main");
     auto arguments = app.arguments();
+    if (arguments.contains("--compact")) {
+        auto window = qobject_cast<QQuickWindow *>(engine.rootObjects().value(0));
+        if (window) window->resize(1000, 700);
+    }
     bool reviewRequested = false;
     if (arguments.contains("--review-claude-setup")) {
         QObject::connect(&workbench, &Workbench::workflowChanged, &app, [&] {
@@ -56,7 +66,76 @@ int main(int argc, char *argv[]) {
     QElapsedTimer inboxSmokeWait;
     QString inboxFirstCase, inboxSecondCase, inboxEditorFolder, inboxEditorText, inboxProposal;
     int inboxSmokeStage = 0;
-    if (arguments.contains("--inbox-ui-smoke")) {
+    if (arguments.contains("--workspace-ui-smoke")) {
+        QObject::connect(&workbench, &Workbench::failed, &app, [&](const QString &message) { qWarning() << message; app.exit(90); });
+        QTimer::singleShot(150, &app, [&] {
+            auto window = qobject_cast<QQuickWindow *>(engine.rootObjects().value(0));
+            auto panel = window->findChild<QQuickItem *>("connectionPanel");
+            auto editors = window->findChild<QQuickItem *>("workspaceEditors");
+            if (!panel || panel->isVisible() || !editors || !editors->isVisible()) { app.exit(91); return; }
+            for (const auto &name : {"STATEEditor", "PRIMITIVESEditor", "INSTRUCTIONSEditor", "RESULTSEditor"}) {
+                auto editor = window->findChild<QQuickItem *>(name);
+                if (!editor || !editor->isVisible()) { app.exit(92); return; }
+            }
+            QMetaObject::invokeMethod(window, "openSharing");
+        });
+        QObject::connect(&workbench, &Workbench::workflowChanged, &app, [&] {
+            QTimer::singleShot(100, &app, [&] {
+                auto window = qobject_cast<QQuickWindow *>(engine.rootObjects().value(0));
+                auto panel = window->findChild<QQuickItem *>("connectionPanel");
+                auto editors = window->findChild<QQuickItem *>("workspaceEditors");
+                auto share = window->findChild<QQuickItem *>("shareSnapshot");
+                auto view = QJsonDocument::fromJson(workbench.workflowView().toUtf8()).object();
+                if (sharingStage == 0) {
+                    if (!panel->isVisible() || !editors->isVisible() || share->isEnabled()
+                        || panel->property("currentPage").toInt() != 0) { app.exit(93); return; }
+                    sharingStage = 1; workbench.previewFixture();
+                } else if (sharingStage == 1) {
+                    if (!view.contains("demo_folder")) return;
+                    sharingStage = 2; QMetaObject::invokeMethod(window, "openSharing");
+                } else if (sharingStage == 2) {
+                    auto instructions = window->findChild<QQuickItem *>("INSTRUCTIONSEditor");
+                    const auto before = instructions->property("text").toString();
+                    instructions->setProperty("text", before + "\nPreserve this draft.");
+                    if (share->isEnabled() || !window->property("dirty").toBool()) { app.exit(94); return; }
+                    instructions->setProperty("text", before); window->setProperty("dirty", false);
+                    if (!share->isEnabled()) { app.exit(95); return; }
+                    window->findChild<QObject *>("shareClaude")->setProperty("checked", true);
+                    sharingStage = 3; QMetaObject::invokeMethod(share, "clicked");
+                } else if (sharingStage == 3) {
+                    auto copy = window->findChild<QQuickItem *>("copyCaseRequest");
+                    if (!copy || !copy->isVisible() || !copy->isEnabled()) { app.exit(96); return; }
+                    const auto previousClipboard = QGuiApplication::clipboard()->text();
+                    QMetaObject::invokeMethod(copy, "clicked");
+                    const auto request = QGuiApplication::clipboard()->text();
+                    QGuiApplication::clipboard()->setText(previousClipboard);
+                    if (!request.contains(view["case"].toObject()["case_id"].toString())
+                        || !request.contains("Do not run an evaluation")) { app.exit(97); return; }
+                    for (const auto &name : {"STATEEditor", "PRIMITIVESEditor"}) {
+                        if (window->findChild<QObject *>(name)->property("cursorPosition").toInt() != 0) {
+                            qWarning() << "Sharing moved an untouched editor cursor" << name; app.exit(102); return;
+                        }
+                    }
+                    const QRectF bounds(0, 0, window->width(), window->height());
+                    for (const auto &name : {"workspaceEditors", "connectionPanel", "caseTitle", "shareCaseButton", "closeTaskPanel", "runButton"}) {
+                        auto item = window->findChild<QQuickItem *>(name);
+                        if (!item || !item->isVisible() || !bounds.contains(QRectF(item->mapToScene(QPointF(0, 0)), QSizeF(item->width(), item->height())))) {
+                            qWarning() << "Workspace control outside window" << name; app.exit(98); return;
+                        }
+                    }
+                    auto index = arguments.indexOf("--capture");
+                    if (index >= 0 && index + 1 < arguments.size() && !window->grabWindow().save(arguments[index + 1])) { app.exit(99); return; }
+                    QKeyEvent press(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+                    QKeyEvent release(QEvent::KeyRelease, Qt::Key_Escape, Qt::NoModifier);
+                    QCoreApplication::sendEvent(window, &press); QCoreApplication::sendEvent(window, &release);
+                    QCoreApplication::processEvents();
+                    if (panel->isVisible()) { app.exit(100); return; }
+                    app.exit(0);
+                }
+            });
+        });
+        QTimer::singleShot(15000, &app, [&] { app.exit(101); });
+    } else if (arguments.contains("--inbox-ui-smoke")) {
         // Every case, connector call, and approval uses Workbench's isolated
         // temporary test database. No installed assistant configuration is used.
         auto fail = [&](int code, const QString &message) {
@@ -109,7 +188,6 @@ int main(int argc, char *argv[]) {
                     fail(74, "Second independent case not prepared"); return;
                 }
                 inboxEditorFolder = workbench.caseFolder();
-                window->setProperty("guidedMode", false);
                 inboxEditorText = editor->property("text").toString() + "\nUnsaved second-case editor text must survive incoming review.";
                 editor->setProperty("text", inboxEditorText);
                 QMetaObject::invokeMethod(panel, "close");
@@ -204,7 +282,6 @@ int main(int argc, char *argv[]) {
                     || !window->property("summaryOutput").toString().contains("guest: HTTP 401")
                     || !window->property("summaryOutput").toString().contains(inboxFirstCase.right(8))
                     || result["case"].toObject()["case_id"].toString() != inboxFirstCase
-                    || window->property("guidedMode").toBool()
                     || !window->property("collected").isNull()) {
                     fail(87, "Approval did not publish matching summary and raw results to the workspace"); return;
                 }
@@ -311,7 +388,7 @@ int main(int argc, char *argv[]) {
                 if (sharingStage == 0) {
                     sharingStage = 1;
                     QTimer::singleShot(200, &app, [&] {
-                        QMetaObject::invokeMethod(engine.rootObjects().value(0), "openConnections");
+                        QMetaObject::invokeMethod(engine.rootObjects().value(0), "openSharing");
                     });
                 } else if (sharingStage == 1) {
                     sharingStage = 2;
@@ -357,6 +434,9 @@ int main(int argc, char *argv[]) {
                         fprintf(stderr, "Completed proposal must explain why repeat approval is disabled.\n");
                         app.exit(25); return;
                     }
+                    auto item = qobject_cast<QQuickItem *>(approvalButton);
+                    if (!item || !item->isVisible() || !QRectF(0, 0, window->width(), window->height()).contains(
+                        QRectF(item->mapToScene(QPointF(0, 0)), QSizeF(item->width(), item->height())))) { app.exit(26); return; }
                     auto index = arguments.indexOf("--capture");
                     if (index >= 0 && index + 1 < arguments.size() && !window->grabWindow().save(arguments[index + 1])) { app.exit(22); return; }
                     app.exit(0);
@@ -396,6 +476,8 @@ int main(int argc, char *argv[]) {
             auto editor = testedWindow->findChild<QObject *>("INSTRUCTIONSEditor");
             auto runButton = testedWindow->findChild<QObject *>("runButton");
             if (!editor || !runButton) { app.exit(7); return; }
+            auto mode = testedWindow->findChild<QObject *>("runMode");
+            mode->setProperty("currentIndex", 1);
             for (const auto &name : {"runButton", "runMode", "modelSelector"}) {
                 auto control = testedWindow->findChild<QQuickItem *>(name);
                 if (!control) { app.exit(12); return; }
@@ -416,6 +498,9 @@ int main(int argc, char *argv[]) {
                 }
                 control->setFocus(false);
             }
+            mode->setProperty("currentIndex", 0);
+            auto editors = testedWindow->findChild<QQuickItem *>("workspaceEditors");
+            if (!editors || !editors->isVisible()) { app.exit(14); return; }
             editor->setProperty("text", editor->property("text").toString() + "\nSmoke test edit.");
             if (!testedWindow->property("dirty").toBool()) { app.exit(8); return; }
             testedWindow->setProperty("expanded", 0);

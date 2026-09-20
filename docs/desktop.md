@@ -8,17 +8,47 @@ State, Primitives, and raw Results highlight JSON keys, strings, numbers, and li
 
 ## First five minutes
 
-1. Leave the mode at **Local checks** and press **Run test**. Python starts a synthetic local HTTP fixture and verifies guest denial, absence of private content, and owner access. No website is contacted and no API credits are used.
-2. Press **Use collected evidence in State**. The actual observations become editable JSON in the upper-left pane.
-3. Edit the question and its possible answers in **Primitives**. **+ Question** inserts a Choice, Score, or Noul template. Replace the template wording with your own specific question.
-4. Edit the common directions in **Instructions**. These directions are added to each question independently.
-5. Use **Actions > Save as**. Create or select a folder for this experiment. To reopen it, use **Actions > Open test** and choose its `test.json`.
-6. Press **Preview request** to inspect the exact request without sending it.
-7. For a real evaluation, enter your key in **Actions > API settings**, switch to **Live Jev**, and press **Run test**. This sends your current State and questions to TypeSafe and uses API credits. The key is held only for the session. An inherited `TYPESAFE_API_KEY` also works.
+The app opens directly to State, Primitives, Instructions, and Results. The top
+bar shows the case name, save status, sharing state, and assistant setup/activity.
+An observed Claude request is historical activity, not a live account-login check.
 
-Use the top-right selector for Light, Dark, or System. Drag the dividers or use each pane's Expand button. Escape restores the four-pane view. Ctrl+S saves, Ctrl+O opens, and Ctrl+Enter runs. Results can be read as a summary or raw JSON. History lists saved runs and displays the latest two for comparison.
+1. Press **Run sample checks** for the guest-access fixture. No account or API key
+   is needed. Results shows what was observed; this does not test a real project.
+2. Use **New sample** for a saved example with a proposed check to review. The
+   review appears beside the editors. Inspect its scope and approve it once.
+3. Use **Share case** to choose assistant access. Save current edits before
+   sharing. After sharing with Claude, **Copy request for Claude** copies the
+   exact case ID so identically named samples cannot be confused.
+4. Paste and send the request in Claude. Incoming proposals appear in **Inbox**
+   automatically. **Review proposal** opens the exact saved case beside the
+   editors, preserving unsaved work in another case. Approval publishes the result
+   in Results. Ask Claude to read the result after approval; an idle conversation
+   does not resume by itself.
+5. **Open case** and **Save case** manage saved cases. **Add question** inserts a
+   Choice, Score, or Noul template. Replace its wording with a specific question.
 
-The Model dropdown defaults to `jev-latest` for new tests. It also offers the published pinned version `jev-1.13.0` and the `jev-preview` alias. The catalog comes from https://docs.typesafe.ai/models (checked September 19, 2026); it is not fetched automatically. Opening a saved test preserves its model, including version names absent from the built-in catalog.
+For initial connection setup, use the Claude setup/activity button at the top.
+Review and approve the proposed settings change, fully restart Claude, then
+copy/send the connection test. Select **Check for Claude request** to inspect
+recorded activity. Setup and sharing are separate approvals.
+
+**Actions** retains Save as, evidence import, diagnostics, and API settings.
+The side panel's selector switches between sharing, assistant evidence, review,
+activity, and setup. Close or Escape returns focus to the workspace.
+
+For a Jev assessment, set a session key in **Actions > API settings**, choose
+**Jev assessment**, select its model, and inspect **Preview request** before
+**Ask Jev**. This uses TypeSafe credits. The current workflow validation uses
+synthetic local checks and does not exercise paid evaluations.
+
+Drag the pane dividers or use Expand/Restore. Light and Night Shift are equally
+supported. Ctrl+S saves, Ctrl+O opens, and Ctrl+Enter runs the selected mode.
+Summary and Raw JSON display the same result. **Local runs** retains the original
+local/Jev run history; a unified case-centered history remains future work.
+
+The Jev model defaults to `jev-latest`. The catalog also includes `jev-1.13.0`
+and `jev-preview`; opening a saved case preserves its chosen model even if absent
+from the catalog. The model control appears when Jev assessment is selected.
 
 ## What runs
 

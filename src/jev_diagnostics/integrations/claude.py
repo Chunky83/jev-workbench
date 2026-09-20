@@ -228,7 +228,7 @@ def apply(store, plan_id):
         plan.update(state='applied', backup=str(backup) if raw is not None else None,
                     after=fingerprint(updated), applied=now())
         db.execute('UPDATE integration_plans SET payload=? WHERE id=?', (json.dumps(plan), plan_id))
-    return 'Setup saved. Quit and reopen Claude when you are ready, then ask: “List my Jev Workbench cases.” Return here and select Check connection.'
+    return 'Setup saved. Quit and reopen Claude when you are ready, then ask: “List my Jev Workbench cases.” Return here and select Check for Claude request.'
 
 def restore(store, plan_id):
     """Explicit desktop undo; refuse to overwrite later edits by another program."""

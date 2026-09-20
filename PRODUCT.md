@@ -25,12 +25,15 @@ Approved Print Shop neubrutalist style with Test Bench comparisons. Night Shift 
 
 Keyboard controls, visible focus, high-contrast text, text alongside status colors, no decorative motion. The user works at a desktop in both daylight and evening, so light and dark themes are equally supported.
 
-## Guided desktop workflow (19 September 2026)
+## Desktop workflow
 
-Default to a task-first overview: connect an assistant, try a saved-for-you sample, or open
-a saved test. Keep the four existing quadrants under Advanced editor. Discover supported
-application profiles automatically; require a readable, scoped review before changing
-external settings. Distinguish discovered profiles, saved configuration, observed tool
-activity, account identity and case sharing. Every blocked or completed action needs an
-explanation and a useful next step. See docs/desktop-workflow-review.md for the staged
-architecture and explicit remaining work.
+The four quadrants are the primary workspace. Keep the case name, save status,
+sharing state, and next action visible. Use focused in-window panels for sharing,
+assistant setup, evidence, proposal review, and diagnostics. Setup instructions
+must not stand between an already configured assistant and case sharing.
+
+Discover supported profiles automatically; require a scoped review and approval
+before changing external settings. Distinguish saved configuration, observed tool
+activity, account identity, and case sharing. Automatically surface proposals and
+results without replacing unsaved editor content. Every blocked or completed
+action needs an explanation and a useful next step.

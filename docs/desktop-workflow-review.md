@@ -1,6 +1,6 @@
 # Jev Workbench: desktop workflow review
 
-Reviewed 19 September 2026. Local implementation review, not a production certification.
+Historical review from 19 September 2026. The later four-pane-first direction supersedes the Overview recommendation below. See [the current desktop guide](desktop.md) for implemented navigation and [result handoff](result-handoff.md) for subsequent connector verification. Earlier test counts describe that earlier build, not the latest package.
 
 The central problem is that the prototype made the user act as its integration layer: find the right application folder, edit settings, save a case, share a revision, refresh, interpret a disabled button, and distinguish several kinds of results. Those responsibilities belong primarily to the software.
 

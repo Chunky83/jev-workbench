@@ -38,6 +38,7 @@ public:
     Q_INVOKABLE void reviewIncoming(const QString &caseId, const QString &proposalId);
     Q_INVOKABLE void clearIncomingReview();
     Q_INVOKABLE void copyConnectionPrompt();
+    Q_INVOKABLE void copyProposalPrompt();
     Q_INVOKABLE void previewFixture();
     Q_INVOKABLE void workflow(const QString &operation, const QString &parameters = "{}");
     Q_INVOKABLE QString connectorCommand(const QString &host) const;

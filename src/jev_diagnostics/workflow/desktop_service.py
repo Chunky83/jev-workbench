@@ -75,9 +75,9 @@ def dispatch(message):
             for proposal in records['proposal']:
                 proposal['review_hash'] = digest(proposal)
         if operation == 'share':
-            notice = 'Saved snapshot shared with ' + ', '.join(case['shared_with']) + '. Next: ask that assistant to read your Jev case and propose a check. Previous results remain in history.'
+            notice = 'Saved snapshot shared with ' + ', '.join(case['shared_with']) + '. Copy the case request and send it to your assistant.'
         elif operation == 'demo':
-            notice = 'Sample saved and ready. Approve the sample check below, or return to Connections to share it with an assistant.'
+            notice = 'Sample saved. Review its check here, or choose Share case in the workspace to involve an assistant.'
     activity = timeline(store.path) if operation in ('activity', 'activity_export', 'diagnostics') else None
     response = {'workflow': {'case': case, 'records': records, 'integration': integration,
             'notice': notice, 'database': str(store.path), 'activity': activity, 'diagnostic': diagnostic, 'export_path': export_path,
