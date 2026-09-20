@@ -15,8 +15,9 @@ jsonschema-specifications==2025.9.1
 mcp==1.30.0
 pycparser==3.0
 pydantic==2.13.5
+# pydantic declares its exact compatible pydantic-core version.
+# Keep the core package transitive so Dependabot cannot update it alone.
 pydantic-settings==2.15.0
-pydantic_core==2.46.5
 PyJWT==2.14.0
 python-dotenv==1.2.3
 python-multipart==0.0.32
