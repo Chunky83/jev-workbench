@@ -8,6 +8,11 @@ updates:
       time: "09:00"
       timezone: America/New_York
     open-pull-requests-limit: 5
+    ignore:
+      # MCP 2.x requires a deliberate API migration. Continue accepting 1.x updates.
+      - dependency-name: mcp
+        update-types:
+          - version-update:semver-major
 
   - package-ecosystem: github-actions
     directory: /
