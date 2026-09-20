@@ -111,12 +111,14 @@ def _matches_registered_world(case, expected):
 
 def _registered_pristine_copy(store, world_id, expected, canonical):
     from ..case_store import load_case
+    from .library import metadata
 
     root = canonical.parent.resolve()
     prefix = world_id + "-"
     with store.transaction() as db:
         sources = [row["source"] for row in
-                   db.execute("SELECT source FROM cases ORDER BY rowid DESC").fetchall()]
+                   db.execute("SELECT id, source FROM cases ORDER BY rowid DESC").fetchall()
+                   if not metadata(db, row["id"]).get("archived", False)]
     for source in sources:
         folder = Path(source).resolve()
         if folder == canonical or folder.parent != root or not folder.name.startswith(prefix):
