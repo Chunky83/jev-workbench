@@ -12,7 +12,7 @@ def create(store, sample):
     tools = Tools(store.path, 'preview')
     evidence = tools.call('submit_evidence', {'case_id': case['case_id'], 'expected_revision': case['revision'],
         'content': 'Synthetic reported symptom: guest requests should be denied while owner requests succeed. This excerpt is not a test result.',
-        'origin': 'Built-in preview fixture; no Claude or ChatGPT connection'})
+        'origin': 'Built-in sample note; synthetic, not an observed test result'})
     tools.call('submit_proposal', {'case_id': case['case_id'], 'expected_revision': evidence['revision'],
         'summary': 'Synthetic walkthrough: verify guest denial and owner access in the localhost fixture.',
         'evidence_ids': [evidence['evidence']['id']], 'check_id': 'guest_access_fixture',

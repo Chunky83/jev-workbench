@@ -76,6 +76,8 @@ Workbench::Workbench(QObject *parent) : QObject(parent) {
     connect(&m_inboxTimer, &QTimer::timeout, this, &Workbench::refreshInbox);
     bool isolatedTest = false;
     for (const auto &argument : arguments) if (argument.endsWith("-smoke") || argument == "--smoke-test") isolatedTest = true;
+    if (!isolatedTest && !arguments.contains("--demo"))
+        QTimer::singleShot(0, this, [this] { workflow("status"); });
     if (!isolatedTest || arguments.contains("--inbox-ui-smoke")) {
         m_inboxTimer.start(2000);
         QTimer::singleShot(400, this, &Workbench::refreshInbox);
@@ -100,7 +102,7 @@ void Workbench::setTheme(const QString &value) {
 void Workbench::setStatus(const QString &value) { m_status = value; emit statusChanged(); }
 QString Workbench::dataFolder() const {
     auto arguments = QCoreApplication::arguments();
-    if (arguments.contains("--ui-smoke") || arguments.contains("--workflow-ui-smoke") || arguments.contains("--sharing-ui-smoke") || arguments.contains("--setup-ui-smoke") || arguments.contains("--diagnostics-ui-smoke") || arguments.contains("--inbox-ui-smoke") || arguments.contains("--smoke-test"))
+    if (arguments.contains("--workspace-ui-smoke") || arguments.contains("--ui-smoke") || arguments.contains("--workflow-ui-smoke") || arguments.contains("--sharing-ui-smoke") || arguments.contains("--setup-ui-smoke") || arguments.contains("--diagnostics-ui-smoke") || arguments.contains("--inbox-ui-smoke") || arguments.contains("--smoke-test"))
         return m_testData.path();
     return QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
 }
@@ -245,6 +247,16 @@ void Workbench::reviewIncoming(const QString &caseId, const QString &proposalId)
 }
 void Workbench::clearIncomingReview() {
     m_reviewView = "{}"; emit reviewChanged();
+}
+void Workbench::copyProposalPrompt() {
+    const auto shared = QJsonDocument::fromJson(m_workflowView.toUtf8()).object()["case"].toObject();
+    if (shared.isEmpty()) { emit failed("Share the saved case before copying its request."); return; }
+    const auto title = shared["snapshot"].toObject()["title"].toString();
+    QGuiApplication::clipboard()->setText("Use Jev Workbench to read case " + shared["case_id"].toString()
+        + " (" + title + "). Read its latest revision, submit selected evidence, and propose the guest_access_fixture check. "
+          "Explain that the existing sample evidence is synthetic and unverified. Do not run an evaluation or execute changes. "
+          "I will approve the exact proposal in Workbench. After I approve, read the case again and read the run for your proposal to report its observed result.");
+    setStatus("Case request copied. Paste it into Claude; its proposal will appear in Workbench.");
 }
 void Workbench::copyConnectionPrompt() {
     QGuiApplication::clipboard()->setText("Use the Jev Workbench list_cases tool and tell me which cases I have shared. If no cases are shared, say so. Do not run an evaluation or submit changes.");

@@ -16,6 +16,10 @@ Rectangle {
     property alias text: editor.text
     signal edited()
     signal maximize()
+    function showStart() {
+        editor.cursorPosition = 0
+        editorScroll.ScrollBar.vertical.position = 0
+    }
     color: colors.surface
     border.color: colors.border
     border.width: 2
@@ -27,7 +31,8 @@ Rectangle {
             RowLayout {
                 anchors.fill: parent; anchors.margins: 10; spacing: 12
                 Text { text: pane.title; color: pane.colors.ink; font.pixelSize: 17; font.bold: true; font.family: "Segoe UI" }
-                Text { text: pane.subtitle; color: pane.colors.muted; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideRight }
+                Text { visible: pane.width >= 360; text: pane.subtitle; color: pane.colors.muted; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideRight }
+                Item { visible: pane.width < 360; Layout.fillWidth: true }
                 BlockButton {
                     colors: pane.colors; text: pane.expanded ? "Restore" : "Expand"
                     implicitHeight: 30; implicitWidth: 76; onClicked: pane.maximize()
@@ -36,6 +41,8 @@ Rectangle {
         }
         Rectangle { Layout.fillWidth: true; height: 2; color: pane.colors.border }
         ScrollView {
+            id: editorScroll
+            contentWidth: availableWidth
             Layout.fillWidth: true; Layout.fillHeight: true
             clip: true
             TextArea {
@@ -49,10 +56,12 @@ Rectangle {
                 selectionColor: pane.colors.primary
                 selectedTextColor: "white"
                 textFormat: TextEdit.PlainText
+                verticalAlignment: TextEdit.AlignTop
                 font.family: Qt.platform.os === "osx" ? "Menlo" : "Consolas"; font.pixelSize: 15
                 padding: 18
                 background: Rectangle { color: pane.colors.surface }
-                onTextChanged: pane.edited()
+                onTextChanged: { pane.edited(); if (pane.readOnly) Qt.callLater(pane.showStart) }
+                Component.onCompleted: pane.showStart()
                 Accessible.name: pane.title + " editor"
                 SyntaxHighlighter {
                     target: editor.textDocument

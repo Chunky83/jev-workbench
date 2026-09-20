@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-Dialog {
+Pane {
     id: panel
     objectName: "connectionPanel"
     readonly property int currentPage: pages.currentIndex
@@ -15,20 +15,20 @@ Dialog {
     property var shared: reviewingIncoming ? incoming.case : (view.case || null)
     property var records: reviewingIncoming ? incoming.records : (view.records || ({}))
     property var proposals: reviewingIncoming ? (records.proposal || []) : (records.proposal || []).filter(x => shared && x.review_revision === shared.revision)
-    property var selected: proposals.length && proposalPicker.currentIndex >= 0 ? proposals[proposalPicker.currentIndex] : null
+    property var selected: proposals.length && proposalPicker.currentIndex >= 0 ? (proposals[proposalPicker.currentIndex] || null) : null
     property var inboxItems: (JSON.parse(workbench.inboxView).proposals || [])
     property var inboxSelection: reviewingIncoming && selected ? inboxItems.find(x => x.proposal_id === selected.id) : null
     property bool alreadyApproved: !!selected && (records.approval || []).some(x => x.proposal_id === selected.id)
     property string approvalBlockReason: {
         if (workbench.busy) return "A task is running. Wait for it to finish or use Stop."
-        if (alreadyApproved) return "This proposal was already approved. View its results below. To repeat the walkthrough, load a new synthetic walkthrough from Connections."
+        if (alreadyApproved) return "This proposal was already approved. See Results. A new check needs a new proposal."
         if (editorDirty && !reviewingIncoming) return "Save your editor changes before reviewing a proposal. If the saved inputs changed, share them and request a new proposal."
-        if (!shared) return "No shared case is selected. Share a saved snapshot or load the synthetic walkthrough from Connections."
-        if (!selected) return "This editor case has no current proposal. Use Inbox to see incoming proposals for every case."
+        if (!shared) return "Share a saved case first, or choose New sample in the workspace."
+        if (!selected) return "No current proposal for this case. Share it and ask the assistant to propose a check, or open Inbox."
         if (shared.shared_with.indexOf(selected.submitted_by) < 0) return "Access for this proposal's connection was revoked. Share the case and request a new proposal."
         if (reviewingIncoming && inboxSelection && inboxSelection.status === "revoked") return "Access was revoked after this review opened. Request a new proposal after sharing again."
         if (reviewingIncoming && inboxSelection && inboxSelection.revision !== shared.revision) return "This case changed while you were reviewing. Refresh this review to see its current state."
-        if (selected.review_revision !== shared.revision) return "The case changed after this proposal. Request a new proposal for the current revision, or load a fresh synthetic walkthrough."
+        if (selected.review_revision !== shared.revision) return "The case changed after this proposal. Request a new proposal for the current revision, or choose New sample in the workspace."
         return ""
     }
     property var integration: view.integration || ({profiles: [], activity: [], warnings: []})
@@ -45,20 +45,35 @@ Dialog {
     signal openInboxRequested()
     signal useState(var state)
     signal showResults(var view)
-    title: pages.currentIndex === 2 ? "Review assistant proposal" : pages.currentIndex === 3 ? "Activity and diagnostics" : "Connect assistants"
-    anchors.centerIn: parent
-    width: Math.min(parent.width - 48, 960)
-    height: Math.min(parent.height - 48, 720)
-    modal: true
-    closePolicy: Popup.CloseOnEscape
-    palette.window: colors.surface; palette.text: colors.ink; palette.buttonText: colors.ink
-    background: Rectangle { color: panel.colors.surface; border.color: panel.colors.border; border.width: 3 }
-    function connections() { pages.currentIndex = 0; open() }
+    visible: false
+    focus: visible
+    padding: 16
+    readonly property bool opened: visible
+    property bool otherAssistants: false
+    signal dismissed()
+    signal saveRequested()
+    signal sampleRequested()
+    background: Rectangle { color: panel.colors.surface; border.color: panel.colors.border; border.width: 2 }
+    Keys.onEscapePressed: event => { close(); event.accepted = true }
+    function open() { visible = true; forceActiveFocus(Qt.OtherFocusReason) }
+    function close() { visible = false; dismissed() }
+    function connections() { pages.currentIndex = 4; open() }
+    function sharing() {
+        workbench.clearIncomingReview()
+        pages.currentIndex = 0
+        const hosts = view.case ? view.case.shared_with.filter(x => x !== "preview") : []
+        claude.checked = hosts.length ? hosts.indexOf("claude") >= 0 : true
+        chatgpt.checked = hosts.indexOf("chatgpt") >= 0
+        codex.checked = hosts.indexOf("codex") >= 0
+        otherAssistants = chatgpt.checked || codex.checked
+        open()
+    }
     function activity() { pages.currentIndex = 3; open(); panel.send("activity") }
     function review() { pages.currentIndex = 2; open() }
+    function showEvidence() { pages.currentIndex = 1; open(); panel.send("status") }
     function send(operation, data) { workbench.workflow(operation, JSON.stringify(data || {})) }
     function activityText() {
-        if (!view.activity) return "Select Refresh to load activity."
+        if (!view.activity) return "Open Activity to load recorded operations."
         const entries = view.activity.events
         const names = {session: "Application session", setup_review: "Setup review prepared", setup_apply: "Claude setup", setup_cancel: "Setup review cancelled", setup_undo: "Claude setup restored", diagnostics: "Local connector diagnostic", demo: "Sample walkthrough", share: "Snapshot sharing", revoke: "Access revoked", budget: "Jev allowance changed", approval: "Check approved", approve: "Approved check", outcome: "Check outcome saved", inbox: "Assistant inbox updated", review_proposal: "Proposal opened for review", run: "Run", list_cases: "List shared cases", read_case: "Read shared case", submit_evidence: "Evidence received", submit_proposal: "Check proposal received", save: "Save test", open: "Open test", activity_export: "Export diagnostics", allowance_consumed: "Jev call allowance consumed"}
         let shown = activityDetails ? entries : entries.filter(x => {
@@ -80,7 +95,7 @@ Dialog {
         }).join("\n\n")
     }
     function reviewText() {
-        if (!selected) return "No proposal to approve.\n\nSubmit evidence and a named-check proposal from a configured assistant, or load the synthetic walkthrough."
+        if (!selected) return "No proposal to approve.\n\nShare this case, copy the request, and send it to your assistant. Its proposal will appear automatically."
         let result = ""
         if (selectedOutcome && selectedOutcome.verification && selectedOutcome.verification.assertions) {
             result = "RESULT: " + selectedOutcome.verification.status.toUpperCase() + " — synthetic fixture only\n"
@@ -99,195 +114,165 @@ Dialog {
         return text + "Approval applies once to this exact proposal and revision. The check runs a synthetic localhost HTTP server and sends two local requests. It does not access your repository or any external website."
     }
     function results(view) {
-        const resultRecords = view.records || ({})
-        let text = view.case ? "CASE: " + view.case.snapshot.title + " • " + view.case.case_id.slice(-8) + "\n\n" : ""
-        text += "ASSISTANT PROPOSALS (unverified)\n"
-        for (let item of resultRecords.proposal || []) text += "\n" + item.submitted_by + ": " + item.summary + "\n"
-        text += "\nJEV ASSESSMENTS (not independent verification)\n"
-        let assessments = (resultRecords.outcome || []).filter(x => x.response !== undefined)
-        if (!assessments.length) text += "Not requested. No TypeSafe credits used by this walkthrough.\n"
-        for (let item of assessments) text += JSON.stringify(item.response, null, 2) + "\n"
-        text += "\nVERIFIED CHECKS\n"
-        let checks = (resultRecords.outcome || []).filter(x => x.checks !== undefined || x.status === "interrupted")
-        if (!checks.length) text += "Not performed.\n"
-        for (let item of checks) {
-            if (item.status === "interrupted") { text += "Interrupted. Verification not performed.\n"; continue }
-            text += item.verification.status.toUpperCase() + " / " + item.verification.scope + "\n"
-            for (let assertion of item.verification.assertions)
+        const data = view.records || ({})
+        const approvedRunIds = (data.run || []).filter(x => x.approval_id !== undefined).map(x => x.id)
+        const checks = (data.outcome || []).filter(x => approvedRunIds.indexOf(x.run_id) >= 0)
+        const latest = checks.length ? checks[0] : null
+        let text = !latest ? "No verified check result yet."
+            : latest.status === "failed" ? "FAILED. Verification not performed."
+            : latest.status === "interrupted" ? "INTERRUPTED. Verification not performed."
+            : latest.verification.status.toUpperCase() + " / " + latest.verification.scope
+        text += "\n\nCASE: " + (view.case ? view.case.snapshot.title + " · " + view.case.case_id.slice(-8) : "No case") + "\n"
+        if (latest && latest.checks !== undefined) {
+            for (let assertion of latest.verification.assertions)
                 text += "\n" + assertion.role + ": HTTP " + assertion.status + "; protected content " + (assertion.protected_content_present ? "present" : "absent") + "; " + (assertion.passed ? "PASSED" : "FAILED")
-            text += "\n\nRun: " + item.run_id + "\n"
         }
+        text += "\n\nAssistant proposals (unverified)\n"
+        for (let item of data.proposal || []) text += "\n" + item.submitted_by + ": " + item.summary + "\n"
+        const assessments = (data.outcome || []).filter(x => x.response !== undefined)
+        text += "\nJev assessments (not independent verification)\n"
+        if (!assessments.length) text += "No Jev response recorded.\n"
+        for (let item of assessments) text += JSON.stringify(item.response, null, 2) + "\n"
+        if (checks.length > 1) text += "\n" + checks.length + " check outcomes recorded. Inspect Raw JSON for earlier outcomes.\n"
         return text
     }
     contentItem: ColumnLayout {
         spacing: 12
         RowLayout {
-            Repeater {
-                model: ["Connections", "Evidence & state", "Review & run", "Activity"]
-                BlockButton { required property string modelData; required property int index
-                    colors: panel.colors; text: modelData; primary: pages.currentIndex === index
-                    onClicked: { pages.currentIndex = index; if (index === 3) panel.send("activity") } }
+            Layout.fillWidth: true
+            ThemeComboBox {
+                objectName: "taskPanelSection"; colors: panel.colors; Layout.fillWidth: true
+                model: ["Share case", "Assistant evidence", "Review proposal", "Activity", "Assistant setup"]
+                currentIndex: pages.currentIndex; Accessible.name: "Workspace panel"
+                onActivated: { if (currentIndex === 0) panel.sharing(); else { pages.currentIndex = currentIndex; if (currentIndex === 3) panel.send("activity"); else if (currentIndex === 4) panel.send("status") } }
             }
-            Item { Layout.fillWidth: true }
-            BlockButton { colors: panel.colors; text: "Refresh"; enabled: !workbench.busy; onClicked: panel.reviewingIncoming ? workbench.reviewIncoming(panel.shared.case_id, panel.incoming.proposal_id) : panel.send(pages.currentIndex === 3 ? "activity" : "status") }
-            BlockButton { colors: panel.colors; text: "Close"; onClicked: panel.close() }
+            BlockButton { objectName: "closeTaskPanel"; colors: panel.colors; text: "Close"; implicitWidth: 68; onClicked: panel.close() }
         }
-        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted
-            text: panel.shared ? "Saved snapshot available to: " + (panel.shared.shared_with.join(", ") || "nobody") : "No test shared yet. Connect first, or start with the sample below." }
-        Text { objectName: "sharingFeedback"; Accessible.name: text; Layout.fillWidth: true
-            visible: text.length > 0; text: panel.reviewingIncoming ? "" : (panel.view.notice || ""); wrapMode: Text.Wrap
-            color: panel.colors.ink; font.bold: true }
+        Text {
+            objectName: "sharingFeedback"; Accessible.name: text; Layout.fillWidth: true
+            visible: text.length > 0; text: panel.reviewingIncoming ? "" : (panel.view.notice || "")
+            textFormat: Text.PlainText; wrapMode: Text.Wrap; color: panel.colors.ink
+        }
         StackLayout {
             id: pages; Layout.fillWidth: true; Layout.fillHeight: true
             ScrollView {
-                id: setupScroll
-                Layout.fillWidth: true; Layout.fillHeight: true; clip: true
-                contentWidth: availableWidth
-                ScrollBar.vertical.policy: ScrollBar.AlwaysOn
+                id: sharingScroll; clip: true; contentWidth: availableWidth
                 ColumnLayout {
-                    width: setupScroll.availableWidth; spacing: 12
-                    Text { text: "1. Let Workbench prepare Claude"; font.pixelSize: 22; font.bold: true; color: panel.colors.ink }
-                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted
-                        text: "This adds Jev tools to Claude Desktop. After your approval, Workbench saves the setup. When you restart Claude, Claude launches the local Jev connector. No browser address or API key is needed." }
-                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink
-                        text: !panel.view.integration ? "Looking for supported assistant settings…" : panel.profiles.length ? "Found " + panel.profiles.length + " Claude profile" + (panel.profiles.length > 1 ? "s. Choose the one you use." : ". Workbench can set up the connection for you.") : "No accessible Claude profile found. Open Claude once, then scan again. Automatic setup currently supports Windows." }
-                    ThemeComboBox { id: profilePicker; objectName: "profilePicker"; colors: panel.colors; Layout.fillWidth: true
-                        visible: panel.profiles.length > 1
-                        model: ["Choose your Claude profile"].concat(panel.profiles.map(x => x.label + " — " + x.path)) }
-                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted
-                        text: panel.profile ? panel.profile.label + " • " + (panel.profile.available ? panel.profile.server_count + " existing connections" : panel.profile.problem) : ""; visible: text.length > 0 }
-                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink
-                        text: panel.profile && panel.profile.configured ? "Setup saved for this Workbench. Quit and reopen Claude when ready, then ask it: List my Jev Workbench cases." : "Setup requires your approval. Your other connections stay in place. No passwords or tokens are needed." }
-                    RowLayout {
-                        BlockButton { objectName: "reviewSetup"; colors: panel.colors; primary: true; text: "Review setup"
-                            enabled: !workbench.busy && !!panel.profile && panel.profile.available && !panel.profile.configured
-                            onClicked: panel.send("setup_review", {profile_id: panel.profile.id}) }
-                        BlockButton { colors: panel.colors; text: "Scan again"; enabled: !workbench.busy; onClicked: panel.send("status") }
-                        BlockButton { objectName: "checkConnection"; colors: panel.colors; text: "Check for Claude request"; enabled: !workbench.busy; onClicked: panel.send("connection_check") }
-                    }
-                    Rectangle { Layout.fillWidth: true; implicitHeight: planColumn.implicitHeight + 24; visible: !!panel.setupPlan && panel.setupPlan.state === "review"
-                        color: panel.colors.background; border.color: panel.colors.border; border.width: 2
-                        ColumnLayout { id: planColumn; anchors.fill: parent; anchors.margins: 12; spacing: 10
-                            Text { text: "Review before setup"; font.bold: true; color: panel.colors.ink }
-                            Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink; text: panel.setupPlan ? panel.setupPlan.summary : "" }
-                            Text { Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; color: panel.colors.muted; text: panel.setupPlan ? panel.setupPlan.path : "" }
-                            BlockButton { colors: panel.colors; text: "Cancel setup review"; enabled: !workbench.busy
-                                onClicked: panel.send("setup_cancel", {plan_id: panel.setupPlan.id}) }
-                            BlockButton { objectName: "approveSetup"; colors: panel.colors; primary: true; text: "Approve setup"; enabled: !workbench.busy
-                                onClicked: panel.send("setup_apply", {plan_id: panel.setupPlan.id}) }
-                        }
-                    }
-                    Text { text: "2. Restart Claude and send the test request"; font.pixelSize: 20; font.bold: true; color: panel.colors.ink }
-                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted
-                        text: "After setup is saved, quit Claude fully and reopen it. Start a new conversation, paste the test request below, and send it. Approve the Jev tool if Claude asks. An empty case list still proves the tool answered." }
-                    RowLayout {
-                        BlockButton { colors: panel.colors; text: "Copy test request for Claude"; enabled: !workbench.busy; onClicked: { workbench.copyConnectionPrompt(); copiedPrompt.visible = true } }
-                        BlockButton { objectName: "testLocalConnector"; colors: panel.colors; text: "Test local connector"; enabled: !workbench.busy; onClicked: panel.send("diagnostics") }
-                    }
-                    Text { id: copiedPrompt; visible: false; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink; text: "Copied. Paste into a new Claude conversation and send it, then choose Check for Claude request here." }
-                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted; text: "Test local connector checks this package only. Check for Claude request looks for a tool call made through the configured connection." }
-                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink
-                        text: panel.claudeActivity ? "Tool request received: " + panel.claudeActivity.tool + " at " + panel.claudeActivity.seen + ". This records local connection activity; account identity is not verified." : "Waiting for the first Claude tool request. Saved settings alone do not verify the connection." }
-                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted
-                        text: (panel.integration.warnings || []).join("\n"); visible: text.length > 0 }
-                    Text { text: "3. Choose what to share"; font.pixelSize: 22; font.bold: true; color: panel.colors.ink }
-                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted
-                        text: !workbench.caseFolder ? "Start with a sample: Workbench saves it automatically. Or save your current test to share it." : panel.editorDirty ? "Save your current edits before sharing." : "Share the saved test with the assistants you choose. Free text is not automatically redacted." }
-                    BlockButton { colors: panel.colors; text: "Start sample walkthrough"; enabled: !workbench.busy && !panel.editorDirty
-                        onClicked: { workbench.previewFixture(); panel.review() } }
-                    RowLayout {
-                        CheckBox { id: claude; objectName: "shareClaude"; text: "Claude"; palette.windowText: panel.colors.ink }
+                    width: sharingScroll.availableWidth; spacing: 14
+                    Text { visible: !workbench.caseFolder; text: "Share the case in your editors"; textFormat: Text.PlainText; font.pixelSize: 20; font.bold: true; color: panel.colors.ink; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                    Text { text: !workbench.caseFolder ? "Save this case first, or create a saved sample." : panel.editorDirty ? "Save your edits before sharing. Assistants can only read the saved copy." : "Choose which assistants may read the saved state, questions, instructions, and submitted evidence."; color: panel.colors.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                    BlockButton { colors: panel.colors; text: "Save current case"; visible: !workbench.caseFolder || panel.editorDirty; enabled: !workbench.busy; onClicked: panel.saveRequested() }
+                    BlockButton { colors: panel.colors; text: "Create saved sample"; visible: !workbench.caseFolder; enabled: !workbench.busy; onClicked: panel.sampleRequested() }
+                    BlockButton { objectName: "copyCaseRequest"; colors: panel.colors; primary: true; text: "Copy request for Claude"; visible: !!panel.view.case && panel.view.case.shared_with.indexOf("claude") >= 0; enabled: !workbench.busy && !panel.editorDirty; onClicked: workbench.copyProposalPrompt() }
+                    Text { visible: !!panel.view.case && panel.view.case.shared_with.indexOf("claude") >= 0; text: "Paste the request into Claude and send it. Its proposal will appear in Inbox automatically. After approval, ask Claude to read the result."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted }
+                    CheckBox { id: claude; objectName: "shareClaude"; text: "Claude"; palette.windowText: panel.colors.ink }
+                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted; text: panel.claudeActivity ? "Last Claude request: " + new Date(panel.claudeActivity.seen).toLocaleString() : "No Claude request recorded yet. Check Assistant setup if needed." }
+                    BlockButton { colors: panel.colors; text: "Other assistants"; onClicked: panel.otherAssistants = !panel.otherAssistants }
+                    ColumnLayout {
+                        visible: panel.otherAssistants; Layout.fillWidth: true
                         CheckBox { id: chatgpt; text: "ChatGPT"; palette.windowText: panel.colors.ink }
                         CheckBox { id: codex; text: "Codex"; palette.windowText: panel.colors.ink }
+                        Text { text: "These clients need separate manual setup. Sharing grants case access; it does not connect an account."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted }
                     }
-                    RowLayout {
-                        BlockButton { objectName: "shareSnapshot"; colors: panel.colors; text: "Share saved snapshot"; enabled: !workbench.busy && !panel.editorDirty && !!workbench.caseFolder && (claude.checked || chatgpt.checked || codex.checked)
-                            onClicked: panel.send("share", {hosts: (claude.checked ? ["claude"] : []).concat(chatgpt.checked ? ["chatgpt"] : []).concat(codex.checked ? ["codex"] : [])}) }
-                        BlockButton { colors: panel.colors; text: "Revoke access"; enabled: !workbench.busy && !!panel.shared; onClicked: panel.send("revoke") }
+                    BlockButton {
+                        objectName: "shareSnapshot"; colors: panel.colors; primary: !panel.view.case || panel.view.case.shared_with.indexOf("claude") < 0; text: "Share saved case"
+                        enabled: !workbench.busy && !panel.editorDirty && !!workbench.caseFolder && (claude.checked || chatgpt.checked || codex.checked)
+                        onClicked: panel.send("share", {hosts: (claude.checked ? ["claude"] : []).concat(chatgpt.checked ? ["chatgpt"] : []).concat(codex.checked ? ["codex"] : [])})
                     }
-                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: panel.shared ? "Accessible to: " + (panel.shared.shared_with.join(", ") || "nobody") : "Accessible to: nobody"; color: panel.colors.ink }
-                    Text { text: "4. Ask, review, run"; font.pixelSize: 22; font.bold: true; color: panel.colors.ink }
-                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink
-                        text: "In your connected assistant, ask: Read my shared Jev case and propose a guest-access check. Workbench will show the proposal automatically. Choose Review proposal in the Inbox. Approving a check runs it once; the result stays in history." }
-                    Text { text: "ChatGPT"; font.bold: true; color: panel.colors.ink }
-                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted
-                        text: "ChatGPT needs account-side Developer mode and a private connection bridge. This preview does not automate that setup yet. Selecting ChatGPT above grants case access only; it does not create a connection." }
-                    BlockButton { colors: panel.colors; text: panel.advanced ? "Hide advanced options" : "Advanced options"; onClicked: panel.advanced = !panel.advanced }
-                    ColumnLayout { visible: panel.advanced; Layout.fillWidth: true; spacing: 10
-                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: "Optional Jev assessment • separate TypeSafe credits. Default: off."; color: panel.colors.muted }
+                    Text { visible: !claude.checked && !chatgpt.checked && !codex.checked; text: "Choose an assistant before sharing."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted }
+                    Text { text: "Shared with: " + (panel.view.case ? panel.view.case.shared_with.filter(x => x !== "preview").join(", ") || "no assistants" : "no assistants"); Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink }
+                    BlockButton { colors: panel.colors; text: "Review current proposal"; visible: panel.proposals.length > 0; enabled: !workbench.busy; onClicked: { workbench.clearIncomingReview(); panel.review() } }
+                    BlockButton { colors: panel.colors; text: "Revoke case access"; visible: !!panel.view.case && panel.view.case.shared_with.length > 0; enabled: !workbench.busy; onClicked: panel.send("revoke") }
+                    BlockButton { colors: panel.colors; text: panel.advanced ? "Hide Jev allowance" : "Optional Jev allowance"; onClicked: panel.advanced = !panel.advanced }
+                    ColumnLayout { visible: panel.advanced; Layout.fillWidth: true
+                        Text { text: "Jev assessments use separate TypeSafe credits. Default: off. The connector needs its own credential access."; color: panel.colors.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
                         RowLayout {
                             ThemeComboBox { id: allowance; colors: panel.colors; model: ["0", "1", "2", "3"] }
-                            BlockButton { colors: panel.colors; text: "Set additional call allowance"; enabled: !workbench.busy && !!panel.shared
-                                onClicked: panel.send("budget", {limit: allowance.currentIndex}) }
+                            BlockButton { colors: panel.colors; text: "Set extra calls"; enabled: !workbench.busy && !!panel.view.case; onClicked: panel.send("budget", {limit: allowance.currentIndex}) }
                         }
-                        Text { text: "Manual launch configuration"; font.bold: true; color: panel.colors.ink }
-                        ThemeComboBox { id: hostPicker; colors: panel.colors; model: ["claude", "chatgpt", "codex"] }
-                        TextArea { Layout.fillWidth: true; text: workbench.connectorCommand(hostPicker.currentText); readOnly: true; selectByMouse: true
-                            color: panel.colors.ink; font.family: "Consolas"; font.pixelSize: 12; wrapMode: TextEdit.Wrap
-                            background: Rectangle { color: panel.colors.background } }
-                        BlockButton { colors: panel.colors; text: "Undo last Claude setup…"; visible: !!panel.setupPlan && panel.setupPlan.state === "applied"; enabled: !workbench.busy
-                            onClicked: panel.undoReview = !panel.undoReview }
-                        Text { visible: panel.undoReview; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink
-                            text: "Restore Claude's exact settings from before this setup? Undo stops if the settings have changed since. Case sharing is unchanged." }
-                        BlockButton { colors: panel.colors; text: "Approve restoring previous settings"; visible: panel.undoReview && !!panel.setupPlan && panel.setupPlan.state === "applied"; enabled: !workbench.busy
-                            onClicked: { panel.send("setup_undo", {plan_id: panel.setupPlan.id}); panel.undoReview = false } }
                     }
                 }
             }
             ColumnLayout {
-                Text { text: "Incoming evidence stays separate"; font.pixelSize: 22; font.bold: true; color: panel.colors.ink }
-                Text { text: "Assistant observations retain origin, timestamp and content hash. Proposed state enters your editor only when you accept it; save and share again to update the assistant snapshot."; wrapMode: Text.Wrap; Layout.fillWidth: true; color: panel.colors.muted }
+                Text { text: "Evidence from assistants"; font.pixelSize: 20; font.bold: true; color: panel.colors.ink; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                Text { text: "Incoming observations and suggested state stay separate from your edits until you accept them."; color: panel.colors.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
                 ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true
-                    TextArea { text: JSON.stringify({evidence: panel.records.evidence || [], pending_state: panel.records.state || []}, null, 2)
-                        readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; color: panel.colors.ink; font.family: "Consolas"; font.pixelSize: 12
-                        background: Rectangle { color: panel.colors.background } } }
-                BlockButton { colors: panel.colors; text: "Accept latest state into editor"; enabled: !workbench.busy && !panel.editorDirty && !!panel.records.state && panel.records.state.length > 0
-                    onClicked: panel.useState(panel.records.state[0].state) }
-                Text { text: panel.editorDirty ? "Save current edits before accepting state." : "Assistant state is a proposal, not a verified fact."; color: panel.colors.muted }
+                    TextArea { text: JSON.stringify({evidence: panel.records.evidence || [], pending_state: panel.records.state || []}, null, 2); readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; color: panel.colors.ink; font.family: "Consolas"; font.pixelSize: 13; background: Rectangle { color: panel.colors.background } }
+                }
+                BlockButton { colors: panel.colors; text: "Accept latest state"; enabled: !workbench.busy && !panel.editorDirty && !!panel.records.state && panel.records.state.length > 0; onClicked: panel.useState(panel.records.state[0].state) }
+                Text { text: panel.editorDirty ? "Save your edits before accepting state." : "Accepted state is still unverified. Save and share it to update the assistant's copy."; color: panel.colors.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
             }
             ColumnLayout {
-                RowLayout {
-                    Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink; font.bold: true
-                        text: panel.shared ? "Reviewing: " + panel.shared.snapshot.title + " • " + panel.shared.case_id.slice(-8) : "No case selected for review" }
-                    BlockButton { colors: panel.colors; text: "Open Inbox"; onClicked: panel.openInboxRequested() }
+                ScrollView {
+                    id: reviewScroll; Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
+                    ColumnLayout {
+                        width: reviewScroll.availableWidth; spacing: 12
+                        Text { objectName: "reviewCaseTitle"; text: panel.shared ? panel.shared.snapshot.title + " · " + panel.shared.case_id.slice(-8) : "No shared case selected"; textFormat: Text.PlainText; color: panel.colors.ink; font.bold: true; font.pixelSize: 19; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                        Text { visible: panel.reviewingIncoming; text: "Reviewing the proposal's saved case. Your editor stays unchanged."; color: panel.colors.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                        ThemeComboBox { id: proposalPicker; Layout.fillWidth: true; colors: panel.colors; model: panel.proposals.length ? panel.proposals.map(x => x.submitted_by + ": " + x.summary.substring(0, 70)) : ["No current proposal"] }
+                        TextArea { objectName: "proposalReviewText"; Layout.fillWidth: true; text: panel.rawProposal && panel.selected ? JSON.stringify(panel.selected, null, 2) : panel.reviewText(); readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; color: panel.colors.ink; font.family: panel.rawProposal ? "Consolas" : "Segoe UI"; font.pixelSize: 14; background: Rectangle { color: panel.colors.background } }
+                        Text { text: panel.selectedOutcome ? "Result: " + (panel.selectedOutcome.verification.status || panel.selectedOutcome.status) : "Not run. Waiting for approval."; color: panel.colors.ink; font.bold: true; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                        RowLayout {
+                            BlockButton { colors: panel.colors; text: panel.rawProposal ? "Readable review" : "Raw details"; onClicked: panel.rawProposal = !panel.rawProposal }
+                            BlockButton { colors: panel.colors; text: "Show results"; onClicked: panel.showResults({case: panel.shared, records: panel.records}) }
+                        }
+                        RowLayout {
+                            BlockButton { colors: panel.colors; text: "Open Inbox"; onClicked: panel.openInboxRequested() }
+                            BlockButton { colors: panel.colors; text: "Reload review"; enabled: !workbench.busy; onClicked: panel.reviewingIncoming ? workbench.reviewIncoming(panel.shared.case_id, panel.incoming.proposal_id) : panel.send("status") }
+                        }
+                    }
                 }
-                Text { visible: panel.reviewingIncoming; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted
-                    text: "This review uses the proposal's saved case. Your editor and unsaved work stay in place." }
-                Text { text: "Review the exact check before approving"; font.pixelSize: 22; font.bold: true; color: panel.colors.ink }
-                Text { text: "This preview runs only the synthetic guest-access fixture. It cannot patch a repository, run arbitrary commands, or verify a real project."; color: panel.colors.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
-                ThemeComboBox { id: proposalPicker; Layout.fillWidth: true; colors: panel.colors
-                    model: panel.proposals.length ? panel.proposals.map(x => x.submitted_by + ": " + x.summary.substring(0, 90)) : ["No current proposal for this editor case. Open Inbox to find incoming proposals."] }
-                ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true
-                    TextArea { text: panel.rawProposal && panel.selected ? JSON.stringify(panel.selected, null, 2) : panel.reviewText()
-                        readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; color: panel.colors.ink; font.family: "Consolas"; font.pixelSize: 12
-                        background: Rectangle { color: panel.colors.background } } }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink; font.bold: true
-                    text: panel.selectedOutcome ? "Check result: " + (panel.selectedOutcome.verification.status || panel.selectedOutcome.status) + " / synthetic fixture only" : "Verification: not performed" }
                 RowLayout {
-                    BlockButton { objectName: "approveProposal"; colors: panel.colors; primary: true; text: panel.alreadyApproved ? "Already approved" : "Approve and run check"
-                        enabled: panel.approvalBlockReason.length === 0
-                        onClicked: panel.send("approve", {case_id: panel.shared.case_id, revision: panel.shared.revision, proposal_id: panel.selected.id, proposal_hash: panel.selected.review_hash, incoming_review: panel.reviewingIncoming}) }
-                    BlockButton { colors: panel.colors; text: "Stop"; enabled: workbench.busy; onClicked: workbench.cancel() }
-                    BlockButton { colors: panel.colors; text: panel.rawProposal ? "Readable review" : "Raw proposal"; onClicked: panel.rawProposal = !panel.rawProposal }
-                    BlockButton { colors: panel.colors; text: "Show workflow results"; onClicked: panel.showResults({case: panel.shared, records: panel.records}) }
+                    BlockButton { objectName: "approveProposal"; colors: panel.colors; primary: true; text: panel.alreadyApproved ? "Already approved" : "Approve and run check"; enabled: panel.approvalBlockReason.length === 0; onClicked: panel.send("approve", {case_id: panel.shared.case_id, revision: panel.shared.revision, proposal_id: panel.selected.id, proposal_hash: panel.selected.review_hash, incoming_review: panel.reviewingIncoming}) }
+                    BlockButton { colors: panel.colors; text: "Stop"; visible: workbench.busy; onClicked: workbench.cancel() }
                 }
-                Text { objectName: "approvalFeedback"; Accessible.name: text; text: panel.approvalBlockReason || "Ready for your approval. This check runs once for the exact proposal and revision shown."; color: panel.colors.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                Text { objectName: "approvalFeedback"; Accessible.name: text; text: panel.approvalBlockReason || "This approval runs the exact check above once."; color: panel.colors.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
             }
             ColumnLayout {
-                Text { text: "Activity and diagnostics"; font.pixelSize: 22; font.bold: true; color: panel.colors.ink }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted; text: "Timestamped operations, approvals, records, errors and connection calls. Request IDs link desktop and worker steps. Contents and credentials are excluded from this timeline." }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted; text: panel.view.activity ? panel.view.activity.retention : "Select Refresh to load recent activity." }
+                Text { text: "Recorded activity"; font.pixelSize: 20; font.bold: true; color: panel.colors.ink }
+                Text { text: "Operations, approvals, errors, and tool calls. Evidence contents and credentials are excluded."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted }
                 ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true
-                    TextArea { objectName: "activityTimeline"; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; color: panel.colors.ink; font.family: "Consolas"; font.pixelSize: 12
-                        text: panel.activityText()
-                        background: Rectangle { color: panel.colors.background } }
+                    TextArea { objectName: "activityTimeline"; text: panel.activityText(); readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; color: panel.colors.ink; font.family: panel.activityDetails ? "Consolas" : "Segoe UI"; font.pixelSize: 13; background: Rectangle { color: panel.colors.background } }
                 }
-                Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink; text: panel.view.activity ? panel.view.activity.warnings.join("\n") : ""; visible: text.length > 0 }
+                Text { text: panel.view.activity ? panel.view.activity.warnings.join("\n") : ""; visible: text.length > 0; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink }
                 RowLayout {
                     BlockButton { colors: panel.colors; text: panel.activityDetails ? "Readable activity" : "Technical details"; onClicked: panel.activityDetails = !panel.activityDetails }
                     BlockButton { colors: panel.colors; text: "Refresh activity"; enabled: !workbench.busy; onClicked: panel.send("activity") }
-                    BlockButton { colors: panel.colors; text: "Export diagnostic report"; enabled: !workbench.busy; onClicked: panel.send("activity_export") }
-                    BlockButton { objectName: "runDiagnostics"; colors: panel.colors; text: "Test local connector"; enabled: !workbench.busy; onClicked: panel.send("diagnostics") }
+                }
+                BlockButton { colors: panel.colors; text: "Export diagnostics"; enabled: !workbench.busy; onClicked: panel.send("activity_export") }
+                BlockButton { objectName: "runDiagnostics"; colors: panel.colors; text: "Test local connector"; enabled: !workbench.busy; onClicked: panel.send("diagnostics") }
+            }
+            ScrollView {
+                id: setupScroll; clip: true; contentWidth: availableWidth
+                ColumnLayout {
+                    width: setupScroll.availableWidth; spacing: 14
+                    Text { text: "Claude Desktop"; font.pixelSize: 20; font.bold: true; color: panel.colors.ink }
+                    Text { text: panel.claudeActivity ? "A Claude tool request was received at " + new Date(panel.claudeActivity.seen).toLocaleString() + ". This is recorded activity, not a live account check." : panel.profile && panel.profile.configured ? "Setup is saved. Send a test request in Claude to check the connection." : "Workbench finds Claude settings and prepares a change for your approval."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted }
+                    ThemeComboBox { id: profilePicker; objectName: "profilePicker"; colors: panel.colors; Layout.fillWidth: true; visible: panel.profiles.length > 1; model: ["Choose a Claude profile"].concat(panel.profiles.map(x => x.label)); Accessible.name: "Claude profile" }
+                    Text { visible: !panel.profile || panel.profiles.length > 1; text: panel.profile ? panel.profile.label : panel.profiles.length ? "Choose which profile to configure." : "No supported Claude profile found. Open Claude once, then check again."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink }
+                    BlockButton { objectName: "reviewSetup"; colors: panel.colors; primary: !!panel.profile && !panel.profile.configured; text: panel.profile && panel.profile.configured ? "Review setup again" : "Review Claude setup"; enabled: !workbench.busy && !!panel.profile && panel.profile.available; onClicked: panel.send("setup_review", {profile_id: panel.profile.id}) }
+                    ColumnLayout {
+                        visible: !!panel.setupPlan && panel.setupPlan.state === "review"; Layout.fillWidth: true; spacing: 10
+                        Text { text: "Change to approve"; color: panel.colors.ink; font.bold: true }
+                        Text { text: panel.setupPlan ? panel.setupPlan.summary : ""; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink }
+                        Text { text: panel.setupPlan ? panel.setupPlan.path : ""; textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.WrapAnywhere; color: panel.colors.muted }
+                        BlockButton { objectName: "approveSetup"; colors: panel.colors; primary: true; text: "Approve setup"; enabled: !workbench.busy; onClicked: panel.send("setup_apply", {plan_id: panel.setupPlan.id}) }
+                        BlockButton { colors: panel.colors; text: "Cancel setup review"; enabled: !workbench.busy; onClicked: panel.send("setup_cancel", {plan_id: panel.setupPlan.id}) }
+                    }
+                    Text { text: "After saving setup, fully quit and reopen Claude. Copy the test request into a new conversation and send it."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted }
+                    BlockButton { colors: panel.colors; primary: !!panel.profile && panel.profile.configured && !panel.claudeActivity; text: "Copy connection test"; enabled: !workbench.busy; onClicked: workbench.copyConnectionPrompt() }
+                    BlockButton { objectName: "checkClaudeRequest"; colors: panel.colors; text: "Check for Claude request"; enabled: !workbench.busy; onClicked: panel.send("connection_check") }
+                    Text { text: (panel.integration.warnings || []).join("\n"); visible: text.length > 0; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted }
+                    BlockButton { colors: panel.colors; text: "Share a case"; enabled: !workbench.busy; onClicked: panel.sharing() }
+                    BlockButton { colors: panel.colors; text: panel.advanced ? "Hide technical setup" : "Technical setup and undo"; onClicked: panel.advanced = !panel.advanced }
+                    ColumnLayout { visible: panel.advanced; Layout.fillWidth: true; spacing: 10
+                        Text { text: "ChatGPT and Codex need manual client setup. Selecting a host below only displays its launch configuration."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted }
+                        ThemeComboBox { id: hostPicker; colors: panel.colors; model: ["claude", "chatgpt", "codex"] }
+                        TextArea { text: workbench.connectorCommand(hostPicker.currentText); Layout.fillWidth: true; readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap; color: panel.colors.ink; font.family: "Consolas"; font.pixelSize: 12; background: Rectangle { color: panel.colors.background } }
+                        BlockButton { colors: panel.colors; text: "Review undo"; visible: !!panel.setupPlan && panel.setupPlan.state === "applied"; enabled: !workbench.busy; onClicked: panel.undoReview = !panel.undoReview }
+                        Text { visible: panel.undoReview; text: "Restore settings from before this setup? Undo stops if Claude settings have changed. Sharing stays unchanged."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink }
+                        BlockButton { colors: panel.colors; text: "Restore previous settings"; visible: panel.undoReview && !!panel.setupPlan && panel.setupPlan.state === "applied"; enabled: !workbench.busy; onClicked: { panel.send("setup_undo", {plan_id: panel.setupPlan.id}); panel.undoReview = false } }
+                    }
                 }
             }
         }
