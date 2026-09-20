@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest a bounded improvement to Jev Workbench
+title: "Feature: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the user need without including private or customer information.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain what you would like Jev Workbench to do.
+    validations:
+      required: true
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety considerations
+      description: Explain any effect on data sharing, API use, approvals, or execution.
+  - type: checkboxes
+    id: data_check
+    attributes:
+      label: Data check
+      options:
+        - label: This request contains no secrets, customer identifiers, private files, or unrelated personal information.
+          required: true

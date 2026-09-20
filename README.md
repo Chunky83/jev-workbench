@@ -6,6 +6,10 @@
 
 A desktop workspace for evidence, diagnostic checks, and explicitly approved assistant proposals.
 
+Jev Workbench is an independent hobby project by Dennis Hernandez. It is not
+an official Jev project and is not affiliated with or endorsed by Jev's
+developers or service operators.
+
 **Mac users:** start with [the Mac quickstart](docs/mac-quickstart.md). Build Apple Silicon packages from Actions → Build macOS packages → Run workflow. Builds are manual-only; pushes, merges, and version changes do not start them.
 
 The current baseline is **0.1.0**: a C++ desktop workspace with a Python engine, a Claude connector, an automatic proposal inbox, explicit approval, and shared results. On Windows, launch the current package with `--local-preview`. See [the workspace map](WORKSPACE.md) for the current package and folders.
@@ -57,3 +61,15 @@ The core evaluation client uses the Python standard library. Connector developme
 ## Key handling
 
 Copy `.env.example` only as a reference. Do not store a real key in the repository. The program reads `TYPESAFE_API_KEY` from the process environment through `api_key.py`.
+
+## License
+
+Jev Workbench is available under the [MIT License](LICENSE). Copyright © 2026 Dennis Hernandez.
+
+## Security
+
+Report suspected vulnerabilities privately by following the [security policy](.github/SECURITY.md). Do not disclose them in public issues or pull requests.
+
+## Contributing
+
+Bug reports, feature ideas, and pull requests are welcome under the repository's [open-but-controlled contribution policy](CONTRIBUTING.md). Only the maintainer can merge changes.

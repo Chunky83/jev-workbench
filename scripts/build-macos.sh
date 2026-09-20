@@ -15,6 +15,7 @@ fi
 python3 -m venv .mac-build-tools
 build_python="$project_root/.mac-build-tools/bin/python"
 "$build_python" -m pip install 'aqtinstall==3.3.0' 'cmake==3.31.6' 'pyinstaller==6.16.0'
+"$build_python" -m pip install -r requirements-connectors.txt
 qt_root="$project_root/.qt-macos/6.8.3/macos"
 if [ ! -x "$qt_root/bin/macdeployqt" ]; then
     "$build_python" -m aqt install-qt mac desktop 6.8.3 clang_64 -O "$project_root/.qt-macos" --archives qtbase qtdeclarative qtshadertools qttools qttranslations

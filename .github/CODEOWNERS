@@ -1,0 +1,6 @@
+# The maintainer reviews every change, including changes to this file.
+* @Chunky83
+/.github/ @Chunky83
+/scripts/ @Chunky83
+/src/jev_diagnostics/connectors/ @Chunky83
+/src/jev_diagnostics/workflow/ @Chunky83

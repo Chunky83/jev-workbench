@@ -1,0 +1,55 @@
+name: Bug report
+description: Report a reproducible problem in Jev Workbench
+title: "Bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include secrets, customer identifiers, private files, or unrelated personal information. Report suspected vulnerabilities through the private security form instead.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Which Jev Workbench version or commit are you using?
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Windows
+        - macOS
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest safe example that reproduces the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted evidence
+      description: Add logs or screenshots only after removing sensitive information.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed secrets, customer identifiers, private files, local paths, and unrelated personal information.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true
