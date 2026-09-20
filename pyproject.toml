@@ -13,7 +13,7 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
-connectors = ["mcp==1.30.0"]
+connectors = ["mcp==2.2.0"]
 
 [project.scripts]
 jev-workbench-mcp = "jev_diagnostics.connectors.mcp_server:main"
