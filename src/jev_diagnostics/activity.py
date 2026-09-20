@@ -9,7 +9,7 @@ import time
 from uuid import uuid4
 
 correlation = ContextVar('activity_correlation', default='')
-OPERATIONS = {'review_proposal', 'inbox', 'status', 'demo', 'share', 'approve', 'interrupt', 'budget', 'revoke',
+OPERATIONS = {'case_list', 'case_history', 'open_case', 'archive_case', 'restore_case', 'review_proposal', 'inbox', 'status', 'demo', 'share', 'approve', 'interrupt', 'budget', 'revoke',
     'setup_review', 'setup_cancel', 'setup_apply', 'setup_undo', 'connection_check',
     'diagnostics', 'activity', 'activity_export', 'open', 'save', 'preview', 'run', 'history',
     'list_cases', 'read_case', 'submit_evidence', 'propose_state', 'evaluate_case',

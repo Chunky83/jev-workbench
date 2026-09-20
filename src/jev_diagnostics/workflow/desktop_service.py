@@ -10,6 +10,15 @@ def dispatch(message):
     store = Store(message['database'])
     operation = message.get('operation', 'status')
     folder = message.get('folder', '')
+    if operation in ('case_list', 'case_history', 'open_case', 'archive_case', 'restore_case'):
+        from . import library
+        if operation == 'open_case':
+            return {'opened_case': library.open_case(store, message['case_id'])}
+        if operation == 'case_history':
+            return {'case_history': library.timeline(store, message.get('case_id', ''))}
+        if operation in ('archive_case', 'restore_case'):
+            library.set_archived(store, message['case_id'], operation == 'archive_case')
+        return {'case_list': library.list_cases(store, message.get('archived', False))}
     from .inbox import snapshot, review
     if operation == 'inbox':
         return {'inbox': snapshot(store)}
@@ -44,7 +53,7 @@ def dispatch(message):
         notice = ('Last successful local Claude tool request: ' + activity['tool'] + ' at ' + activity['seen'] + '. This is historical activity, not a live account login check.') if activity else 'No Claude tool request received yet. After approving setup, quit and reopen Claude, then ask it to list your Jev Workbench cases.'
     if operation == 'demo':
         from .demo import create
-        folder = create(store, message['sample'])
+        folder = create(store, message['sample'], fresh=message.get('fresh', True))
     if operation == 'share':
         share(store, folder, message['hosts'])
     if operation in ('approve', 'interrupt'):
@@ -79,9 +88,20 @@ def dispatch(message):
         elif operation == 'demo':
             notice = 'Sample saved. Review its check here, or choose Share case in the workspace to involve an assistant.'
     activity = timeline(store.path) if operation in ('activity', 'activity_export', 'diagnostics') else None
-    response = {'workflow': {'case': case, 'records': records, 'integration': integration,
+    from ..case_store import load_case
+    from .library import metadata
+    saved_snapshot_current = None
+    archived = False
+    if case:
+        with store.transaction() as db:
+            archived = bool(metadata(db, case['case_id']).get('archived', False))
+        try:
+            saved_snapshot_current = digest(load_case(folder)) == digest(case['snapshot'])
+        except (OSError, ValueError, KeyError, TypeError):
+            saved_snapshot_current = False
+    response = {'workflow': {'case': case, 'records': records, 'saved_snapshot_current': saved_snapshot_current, 'archived': archived, 'integration': integration,
             'notice': notice, 'database': str(store.path), 'activity': activity, 'diagnostic': diagnostic, 'export_path': export_path,
-            **({'demo_folder': folder} if operation == 'demo' else {})}}
+            **({'demo_folder': folder, 'demo_case': load_case(folder)} if operation == 'demo' else {})}}
     if operation == 'approve' and message.get('incoming_review'):
         response['review'] = review(store, message['case_id'], message['proposal_id'])
     return response

@@ -10,7 +10,7 @@ Launch the current package with `--local-preview`; see [the workspace map](../WO
 Keep its runtime folder in place after connecting. The four-pane workspace is
 the default. Sharing and setup have separate in-window panels.
 
-For an account-free example, choose **New sample**. Workbench saves the sample
+For an account-free example, choose **Sample > Create new sample**. Workbench saves the sample
 and opens its proposed check for review. Approve it once and inspect Results.
 This is a synthetic fixture, not a real-project check.
 

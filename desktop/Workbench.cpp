@@ -102,7 +102,7 @@ void Workbench::setTheme(const QString &value) {
 void Workbench::setStatus(const QString &value) { m_status = value; emit statusChanged(); }
 QString Workbench::dataFolder() const {
     auto arguments = QCoreApplication::arguments();
-    if (arguments.contains("--workspace-ui-smoke") || arguments.contains("--ui-smoke") || arguments.contains("--workflow-ui-smoke") || arguments.contains("--sharing-ui-smoke") || arguments.contains("--setup-ui-smoke") || arguments.contains("--diagnostics-ui-smoke") || arguments.contains("--inbox-ui-smoke") || arguments.contains("--smoke-test"))
+    if (arguments.contains("--case-library-ui-smoke") || arguments.contains("--workspace-ui-smoke") || arguments.contains("--ui-smoke") || arguments.contains("--workflow-ui-smoke") || arguments.contains("--sharing-ui-smoke") || arguments.contains("--setup-ui-smoke") || arguments.contains("--diagnostics-ui-smoke") || arguments.contains("--inbox-ui-smoke") || arguments.contains("--smoke-test"))
         return m_testData.path();
     return QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
 }
@@ -195,7 +195,7 @@ void Workbench::preview(const QString &document) {
 void Workbench::evaluate(const QString &document, const QString &mode) {
     if (mode == "live" && !keyAvailable()) { emit failed("Add your TypeSafe API key in Actions > API settings."); return; }
     auto object = parseCase(document); if (object.isEmpty()) return;
-    QJsonObject message{{"action", "run"}, {"case", object}, {"mode", mode}, {"runs_folder", dataFolder() + "/runs"}};
+    QJsonObject message{{"action", "run"}, {"case", object}, {"mode", mode}, {"folder", m_folder}, {"runs_folder", dataFolder() + "/runs"}};
     if (mode == "live" && !m_key.isEmpty()) message["api_key"] = m_key;
     start(message);
 }
@@ -204,9 +204,10 @@ QString Workbench::connectorCommand(const QString &host) const {
     return pretty(QJsonObject{{"command", pythonPath()}, {"args", arguments},
         {"env", QJsonObject{{"PYTHONPATH", workerRoot()}}}});
 }
-void Workbench::previewFixture() {
+void Workbench::previewFixture() { openSample(true); }
+void Workbench::openSample(bool fresh) {
     clearIncomingReview();
-    workflow("demo", pretty(QJsonObject{{"sample", QJsonDocument::fromJson(initialCase().toUtf8()).object()}}));
+    workflow("demo", pretty(QJsonObject{{"sample", QJsonDocument::fromJson(initialCase().toUtf8()).object()}, {"fresh", fresh}}));
 }
 void Workbench::workflow(const QString &operation, const QString &parameters) {
     if (busy()) return;
@@ -327,6 +328,21 @@ void Workbench::complete(int exitCode, QProcess::ExitStatus processStatus) {
     const bool operationFailed = response.value("result").toObject().value("status").toString() == "failed"
         || response.value("workflow").toObject().value("diagnostic").toObject().value("status").toString() == "failed";
     logEvent(m_logOperation, operationFailed ? "failed" : "succeeded");
+    if (response.contains("case_list")) {
+        const auto listed = pretty(response["case_list"].toObject());
+        if (listed != m_caseLibraryView) { m_caseLibraryView = listed; emit caseLibraryChanged(); }
+        if (m_workflowOperation == "archive_case" || m_workflowOperation == "restore_case")
+            QTimer::singleShot(0, this, [this] { workflow("status"); });
+    }
+    if (response.contains("case_history")) {
+        const auto history = pretty(response["case_history"].toObject());
+        if (history != m_caseHistoryView) { m_caseHistoryView = history; emit caseHistoryChanged(); }
+    }
+    if (response.contains("opened_case")) {
+        const auto opened = response["opened_case"].toObject();
+        m_folder = opened["folder"].toString(); emit folderChanged(); emit caseLoaded(pretty(opened["case"].toObject()));
+        QTimer::singleShot(0, this, [this] { workflow("status"); });
+    }
     if (response.contains("review")) {
         m_reviewView = pretty(response["review"].toObject()); emit reviewChanged();
     }
@@ -334,7 +350,7 @@ void Workbench::complete(int exitCode, QProcess::ExitStatus processStatus) {
         auto view = response["workflow"].toObject();
         if (view.contains("demo_folder")) {
             m_folder = view["demo_folder"].toString(); emit folderChanged();
-            emit caseLoaded(pretty(view["case"].toObject()["snapshot"].toObject()));
+            emit caseLoaded(pretty(view["demo_case"].toObject()));
         }
         m_workflowView = pretty(view);
         if (!view["export_path"].toString().isEmpty())

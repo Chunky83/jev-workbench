@@ -135,7 +135,7 @@ This collector ID must exist in the registry before the proposal becomes runnabl
 
 ## Desktop behavior
 
-Keep all four quadrants as the default workspace with both Print Shop and Night Shift themes. Show the current case, save/share status, and observed assistant activity. Use focused in-window panels for sharing, setup, evidence, and exact proposal review. The shared case chooser and unified timeline remain subsequent work.
+Keep all four quadrants as the default workspace with both Print Shop and Night Shift themes. Show the current case, save/share status, and observed assistant activity. Use focused in-window panels for sharing, setup, evidence, and exact proposal review. Cases now lists saved work with sharing and result context; History combines case-linked desktop runs with assistant evidence, proposals, approvals and outcomes. Older unlinked runs remain separate.
 
 State shows evidence origins and pending incoming revisions. Results separates Assistant proposal, Jev assessment, and Verified checks. A proposal opens a concrete diff/check review with Approve and run. Stop cancels active local work; interrupted runs are marked interrupted, not passed. Never replace a dirty editor without resolving the conflict.
 

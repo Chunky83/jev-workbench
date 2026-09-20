@@ -12,10 +12,14 @@ def share(store, folder, hosts):
     snapshot = load_case(source)
     if len(encode(snapshot).encode('utf-8')) > 200000:
         raise ValueError('Shared snapshots must be below 200 KB.')
+    from .library import register, metadata
+    register(store, folder, snapshot)
     with store.transaction() as db:
         row = db.execute('SELECT payload FROM cases WHERE source=?', (source,)).fetchone()
         if row:
             case = json.loads(row['payload'])
+            if metadata(db, case['case_id']).get('archived'):
+                raise ValueError('Restore this case before sharing it again.')
             case.update(snapshot=snapshot, shared_with=hosts, evaluation_limit=0, evaluations_used=0)
             store.advance(db, case)
         else:

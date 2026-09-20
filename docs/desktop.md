@@ -14,7 +14,7 @@ An observed Claude request is historical activity, not a live account-login chec
 
 1. Press **Run sample checks** for the guest-access fixture. No account or API key
    is needed. Results shows what was observed; this does not test a real project.
-2. Use **New sample** for a saved example with a proposed check to review. The
+2. Use **Sample > Open existing sample** for a saved example with a proposed check to review. The
    review appears beside the editors. Inspect its scope and approve it once.
 3. Use **Share case** to choose assistant access. Save current edits before
    sharing. After sharing with Claude, **Copy request for Claude** copies the
@@ -24,7 +24,7 @@ An observed Claude request is historical activity, not a live account-login chec
    editors, preserving unsaved work in another case. Approval publishes the result
    in Results. Ask Claude to read the result after approval; an idle conversation
    does not resume by itself.
-5. **Open case** and **Save case** manage saved cases. **Add question** inserts a
+5. **Cases** lists saved work by name, date, sharing, and last result. **Open from folder** imports an existing saved case; **Save case** saves your edits. **Add question** inserts a
    Choice, Score, or Noul template. Replace its wording with a specific question.
 
 For initial connection setup, use the Claude setup/activity button at the top.
@@ -43,8 +43,29 @@ synthetic local checks and does not exercise paid evaluations.
 
 Drag the pane dividers or use Expand/Restore. Light and Night Shift are equally
 supported. Ctrl+S saves, Ctrl+O opens, and Ctrl+Enter runs the selected mode.
-Summary and Raw JSON display the same result. **Local runs** retains the original
-local/Jev run history; a unified case-centered history remains future work.
+Summary and Raw JSON display the same result. **History** shows the selected case's assistant evidence, proposals, approvals,
+sample checks, and Jev assessments. **Show record** displays its saved detail in
+Results; **Review proposal** opens that exact proposal for review. Reading history
+never executes a check and leaves unsaved editors intact. The panel updates while
+open. Dates and the short reference distinguish same-named cases.
+
+**Sample > Open existing sample** reuses the latest available sample, creating one
+only when none exists. **Sample > Create new sample** makes a separate case.
+**Cases > Archive** asks for confirmation, revokes assistant access, and removes the
+case from Active. Files and records are retained. Choose Archived and Restore to
+bring it back privately; sharing must be approved again. Incomplete runs must be
+resolved before archiving. An archive never discards the current editor draft.
+
+New desktop runs record their case identity and actual input hash, including runs
+against unsaved edits. Older runs without an identity stay under **Runs without a
+case link**. They are never assigned by matching names. New unshared saved cases
+are private; reopening or saving a shared case does not publish its new contents.
+
+Case metadata lives in an additive desktop-only table in the existing workflow
+database. Existing case files and immutable records are unchanged. Older versions
+can ignore the new table and optional run fields. Workflow history is bounded to
+100 records per kind and the latest 1,000 desktop run files, with a 300-event/2 MB
+view limit. Unreadable or omitted records are reported and retained on disk.
 
 The Jev model defaults to `jev-latest`. The catalog also includes `jev-1.13.0`
 and `jev-preview`; opening a saved case preserves its chosen model even if absent
@@ -112,6 +133,6 @@ python -m unittest discover -s tests -v
 
 `scripts/package-windows.ps1` deploys the executable, Qt, Python modules, and a downloaded official embeddable Python ZIP at `build/python-embed.zip`. This build uses Python 3.13.15 from python.org. The package's Python search path explicitly contains `../worker`; user-installed Python packages are not required.
 
-The executable supports `--smoke-test` for the bundled save/open/local-run path and `--ui-smoke --theme Light` (or Dark) for editing and running through QML. `--capture <absolute-png-path>` saves the application's own window. Tests must run with normal desktop permissions; the restricted agent sandbox cannot reliably initialize native Qt processes.
+The executable supports `--case-library-ui-smoke` for sample reuse, duplicate case selection, mixed history, draft-preserving cancellation, archive and restore; `--compact` also exercises the minimum window. It supports `--smoke-test` for the bundled save/open/local-run path and `--ui-smoke --theme Light` (or Dark) for editing and running through QML. `--capture <absolute-png-path>` saves the application's own window. Tests must run with normal desktop permissions; the restricted agent sandbox cannot reliably initialize native Qt processes.
 
 The source is portable in structure, but only Windows packaging and execution have been verified. See THIRD_PARTY_NOTICES.md before preparing a distributable release.

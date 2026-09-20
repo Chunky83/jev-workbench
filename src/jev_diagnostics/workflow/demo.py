@@ -4,10 +4,15 @@ from ..case_store import save_case
 from ..connectors.tool_handlers import Tools
 from .state_service import share
 
-def create(store, sample):
+def create(store, sample, fresh=True):
+    from .library import reusable_sample, register
+    existing = reusable_sample(store) if not fresh else None
+    if existing:
+        return existing
     folder = store.path.parent / 'preview-fixtures' / uuid4().hex
     sample = dict(sample, title='Synthetic connector walkthrough')
     save_case(folder, sample)
+    register(store, folder, sample, sample=True)
     case = share(store, folder, ['preview'])
     tools = Tools(store.path, 'preview')
     evidence = tools.call('submit_evidence', {'case_id': case['case_id'], 'expected_revision': case['revision'],

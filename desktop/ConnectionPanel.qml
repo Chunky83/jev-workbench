@@ -23,12 +23,12 @@ Pane {
         if (workbench.busy) return "A task is running. Wait for it to finish or use Stop."
         if (alreadyApproved) return "This proposal was already approved. See Results. A new check needs a new proposal."
         if (editorDirty && !reviewingIncoming) return "Save your editor changes before reviewing a proposal. If the saved inputs changed, share them and request a new proposal."
-        if (!shared) return "Share a saved case first, or choose New sample in the workspace."
+        if (!shared) return "Share a saved case first, or choose Sample > Create new sample in the workspace."
         if (!selected) return "No current proposal for this case. Share it and ask the assistant to propose a check, or open Inbox."
         if (shared.shared_with.indexOf(selected.submitted_by) < 0) return "Access for this proposal's connection was revoked. Share the case and request a new proposal."
         if (reviewingIncoming && inboxSelection && inboxSelection.status === "revoked") return "Access was revoked after this review opened. Request a new proposal after sharing again."
         if (reviewingIncoming && inboxSelection && inboxSelection.revision !== shared.revision) return "This case changed while you were reviewing. Refresh this review to see its current state."
-        if (selected.review_revision !== shared.revision) return "The case changed after this proposal. Request a new proposal for the current revision, or choose New sample in the workspace."
+        if (selected.review_revision !== shared.revision) return "The case changed after this proposal. Request a new proposal for the current revision, or choose Sample > Create new sample in the workspace."
         return ""
     }
     property var integration: view.integration || ({profiles: [], activity: [], warnings: []})
@@ -162,9 +162,11 @@ Pane {
                     Text { visible: !workbench.caseFolder; text: "Share the case in your editors"; textFormat: Text.PlainText; font.pixelSize: 20; font.bold: true; color: panel.colors.ink; Layout.fillWidth: true; wrapMode: Text.Wrap }
                     Text { text: !workbench.caseFolder ? "Save this case first, or create a saved sample." : panel.editorDirty ? "Save your edits before sharing. Assistants can only read the saved copy." : "Choose which assistants may read the saved state, questions, instructions, and submitted evidence."; color: panel.colors.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
                     BlockButton { colors: panel.colors; text: "Save current case"; visible: !workbench.caseFolder || panel.editorDirty; enabled: !workbench.busy; onClicked: panel.saveRequested() }
-                    BlockButton { colors: panel.colors; text: "Create saved sample"; visible: !workbench.caseFolder; enabled: !workbench.busy; onClicked: panel.sampleRequested() }
-                    BlockButton { objectName: "copyCaseRequest"; colors: panel.colors; primary: true; text: "Copy request for Claude"; visible: !!panel.view.case && panel.view.case.shared_with.indexOf("claude") >= 0; enabled: !workbench.busy && !panel.editorDirty; onClicked: workbench.copyProposalPrompt() }
+                    BlockButton { colors: panel.colors; text: "Open saved sample"; visible: !workbench.caseFolder; enabled: !workbench.busy; onClicked: panel.sampleRequested() }
+                    BlockButton { objectName: "copyCaseRequest"; colors: panel.colors; primary: true; text: "Copy request for Claude"; visible: !!panel.view.case && panel.view.case.shared_with.indexOf("claude") >= 0; enabled: !workbench.busy && !panel.editorDirty && panel.view.saved_snapshot_current !== false; onClicked: workbench.copyProposalPrompt() }
                     Text { visible: !!panel.view.case && panel.view.case.shared_with.indexOf("claude") >= 0; text: "Paste the request into Claude and send it. Its proposal will appear in Inbox automatically. After approval, ask Claude to read the result."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted }
+                    Text { visible: panel.view.saved_snapshot_current === false && !!panel.view.case && panel.view.case.shared_with.length > 0; text: "Your saved case has changed. Share the updated case below before asking for a new proposal."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink }
+                    Text { visible: panel.view.archived === true; text: "This case is archived. Restore it in Cases before sharing again."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.ink }
                     CheckBox { id: claude; objectName: "shareClaude"; text: "Claude"; palette.windowText: panel.colors.ink }
                     Text { Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted; text: panel.claudeActivity ? "Last Claude request: " + new Date(panel.claudeActivity.seen).toLocaleString() : "No Claude request recorded yet. Check Assistant setup if needed." }
                     BlockButton { colors: panel.colors; text: "Other assistants"; onClicked: panel.otherAssistants = !panel.otherAssistants }
@@ -176,7 +178,7 @@ Pane {
                     }
                     BlockButton {
                         objectName: "shareSnapshot"; colors: panel.colors; primary: !panel.view.case || panel.view.case.shared_with.indexOf("claude") < 0; text: "Share saved case"
-                        enabled: !workbench.busy && !panel.editorDirty && !!workbench.caseFolder && (claude.checked || chatgpt.checked || codex.checked)
+                        enabled: !workbench.busy && !panel.editorDirty && panel.view.archived !== true && !!workbench.caseFolder && (claude.checked || chatgpt.checked || codex.checked)
                         onClicked: panel.send("share", {hosts: (claude.checked ? ["claude"] : []).concat(chatgpt.checked ? ["chatgpt"] : []).concat(codex.checked ? ["codex"] : [])})
                     }
                     Text { visible: !claude.checked && !chatgpt.checked && !codex.checked; text: "Choose an assistant before sharing."; Layout.fillWidth: true; wrapMode: Text.Wrap; color: panel.colors.muted }

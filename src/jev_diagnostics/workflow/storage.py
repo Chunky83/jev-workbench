@@ -37,6 +37,7 @@ class Store:
             db.execute('CREATE TABLE IF NOT EXISTS workflow_meta (name TEXT PRIMARY KEY, value TEXT NOT NULL)')
             db.execute("INSERT OR IGNORE INTO workflow_meta VALUES ('workspace_id', ?)", ('workspace-' + uuid4().hex,))
             db.execute('CREATE TABLE IF NOT EXISTS cases (id TEXT PRIMARY KEY, source TEXT UNIQUE, payload TEXT NOT NULL)')
+            db.execute('CREATE TABLE IF NOT EXISTS desktop_case_meta (case_id TEXT PRIMARY KEY, payload TEXT NOT NULL)')
             db.execute('CREATE TABLE IF NOT EXISTS records (id TEXT PRIMARY KEY, case_id TEXT NOT NULL, kind TEXT NOT NULL, payload TEXT NOT NULL, hash TEXT NOT NULL)')
 
     @contextmanager
