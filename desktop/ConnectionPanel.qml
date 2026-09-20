@@ -100,18 +100,29 @@ Pane {
         if (selectedOutcome && selectedOutcome.verification && selectedOutcome.verification.assertions) {
             result = "RESULT: " + selectedOutcome.verification.status.toUpperCase() + " — synthetic fixture only\n"
             for (let assertion of selectedOutcome.verification.assertions)
-                result += assertion.role + ": HTTP " + assertion.status + "; protected content " + (assertion.protected_content_present ? "present" : "absent") + "\n"
+                result += assertionText(assertion) + "\n"
             result += "\n"
         }
         let text = result + selected.summary + "\n\nSubmitted by: " + selected.submitted_by + " (unverified proposal)"
         text += "\n\nCHECK TO RUN\n" + selected.check_id + "\n" + selected.scope
+        if (selected.inputs && selected.inputs.decisions) {
+            text += "\n\nPROPOSED DECISIONS (unverified)\n"
+            for (let cardId in selected.inputs.decisions) text += cardId + ": " + selected.inputs.decisions[cardId] + "\n"
+            text += "\nRATIONALE (unverified)\n"
+            for (let reason of selected.inputs.rationale || []) text += reason.card_id + ": " + reason.summary + "\nEvidence cited: " + reason.evidence.join("; ") + "\n\n"
+        }
         text += "\n\nEXPECTED RESULT\n" + selected.expected_result
         text += "\n\nSUPPORTING EVIDENCE\n"
         for (let id of selected.evidence_ids) {
             let item = (records.evidence || []).find(x => x.id === id)
             text += item ? item.origin + "\nReceived: " + item.created_at + "\n" + item.content + "\n\n" : id + " (refresh to inspect)\n"
         }
-        return text + "Approval applies once to this exact proposal and revision. The check runs a synthetic localhost HTTP server and sends two local requests. It does not access your repository or any external website."
+        return text + "Approval applies once to this exact proposal and revision. The registered fixture is local and synthetic. It does not access your repository or any external service."
+    }
+    function assertionText(assertion) {
+        if (assertion.decision !== undefined)
+            return (assertion.name || assertion.id) + ": chose " + assertion.decision + "; fixture expected " + assertion.expected_decision + "; " + (assertion.passed ? "PASSED" : "FAILED")
+        return assertion.role + ": HTTP " + assertion.status + "; protected content " + (assertion.protected_content_present ? "present" : "absent") + "; " + (assertion.passed ? "PASSED" : "FAILED")
     }
     function results(view) {
         const data = view.records || ({})
@@ -125,7 +136,7 @@ Pane {
         text += "\n\nCASE: " + (view.case ? view.case.snapshot.title + " · " + view.case.case_id.slice(-8) : "No case") + "\n"
         if (latest && latest.checks !== undefined) {
             for (let assertion of latest.verification.assertions)
-                text += "\n" + assertion.role + ": HTTP " + assertion.status + "; protected content " + (assertion.protected_content_present ? "present" : "absent") + "; " + (assertion.passed ? "PASSED" : "FAILED")
+                text += "\n" + assertionText(assertion)
         }
         text += "\n\nAssistant proposals (unverified)\n"
         for (let item of data.proposal || []) text += "\n" + item.submitted_by + ": " + item.summary + "\n"

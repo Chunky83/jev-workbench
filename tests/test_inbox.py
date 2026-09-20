@@ -144,7 +144,7 @@ class InboxTests(unittest.TestCase):
                 'verification': {'status': 'passed', 'scope': 'Synthetic fixture only'}}) as execute:
             approve_and_run(self.store, self.case_b['case_id'], self.case_b['revision'],
                             result['proposal']['id'], reviewed['review_hash'])
-            execute.assert_called_once_with('guest_access_fixture')
+            execute.assert_called_once_with('guest_access_fixture', None)
         self.assertNotIn(result['proposal']['id'],
                          [item['proposal_id'] for item in inbox.snapshot(self.store)['proposals']])
         view, reviewed_again = self.review_record(self.case_b, result)

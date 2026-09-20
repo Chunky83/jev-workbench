@@ -40,7 +40,8 @@ class Tools:
                 return propose_state(self.store, db, case, self.host, args['state'], args['evidence_ids'])
             if name == 'submit_proposal':
                 return submit(self.store, db, case, self.host, args['summary'], args['evidence_ids'],
-                              args['check_id'], args['expected_result'])
+                              args['check_id'], args['expected_result'],
+                              args.get('decisions'), args.get('rationale'))
             run = self.store.record(db, case['case_id'], 'run', args['run_id'])
             outcomes = self.store.records(db, case['case_id'], 'outcome')
             outcome = next((item for item in outcomes if item['run_id'] == run['id']), None)

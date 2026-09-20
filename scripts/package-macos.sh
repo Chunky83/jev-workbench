@@ -27,6 +27,7 @@ ditto build-macos/JevWorkbench.app "$application"
 "$build_python" -m PyInstaller --noconfirm --clean --onefile --target-arch arm64 --name jev-worker \
     --paths "$project_root/src" --distpath "$project_root/build-worker/dist" \
     --workpath "$project_root/build-worker/work" --specpath "$project_root/build-worker" \
+    --add-data "$project_root/test-kits/four-worlds:test-kits/four-worlds" \
     scripts/mac_worker_entry.py
 mkdir -p "$application/Contents/Helpers/jev-worker" "$application/Contents/Resources/worker/jev_diagnostics"
 cp build-worker/dist/jev-worker "$application/Contents/Helpers/jev-worker/jev-worker"

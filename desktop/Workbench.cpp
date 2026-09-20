@@ -209,6 +209,10 @@ void Workbench::openSample(bool fresh) {
     clearIncomingReview();
     workflow("demo", pretty(QJsonObject{{"sample", QJsonDocument::fromJson(initialCase().toUtf8()).object()}, {"fresh", fresh}}));
 }
+void Workbench::openStoryWorld(const QString &worldId) {
+    clearIncomingReview();
+    workflow("story_world", pretty(QJsonObject{{"world_id", worldId}}));
+}
 void Workbench::workflow(const QString &operation, const QString &parameters) {
     if (busy()) return;
     auto values = parseCase(parameters);
@@ -253,10 +257,15 @@ void Workbench::copyProposalPrompt() {
     const auto shared = QJsonDocument::fromJson(m_workflowView.toUtf8()).object()["case"].toObject();
     if (shared.isEmpty()) { emit failed("Share the saved case before copying its request."); return; }
     const auto title = shared["snapshot"].toObject()["title"].toString();
-    QGuiApplication::clipboard()->setText("Use Jev Workbench to read case " + shared["case_id"].toString()
-        + " (" + title + "). Read its latest revision, submit selected evidence, and propose the guest_access_fixture check. "
-          "Explain that the existing sample evidence is synthetic and unverified. Do not run an evaluation or execute changes. "
-          "I will approve the exact proposal in Workbench. After I approve, read the case again and read the run for your proposal to report its observed result.");
+    const auto check = shared["snapshot"].toObject()["runner"].toObject()["check"].toString("guest_access_fixture");
+    auto request = "Use Jev Workbench to read case " + shared["case_id"].toString()
+        + " (" + title + "). Read its latest revision and submit selected evidence. ";
+    if (check == "guest_access_fixture")
+        request += "Propose the guest_access_fixture check and explain that the existing sample evidence is synthetic and unverified. ";
+    else
+        request += "Propose the registered " + check + " check with exactly one allowed decision and one evidence-based rationale for every story card. Preserve uncertainty and use only the supplied fictional facts. ";
+    request += "Do not run an evaluation, approve the proposal, or execute changes. I will approve the exact proposal in Workbench. After I approve, read the case again and read the run for your proposal to report its observed result.";
+    QGuiApplication::clipboard()->setText(request);
     setStatus("Case request copied. Paste it into Claude; its proposal will appear in Workbench.");
 }
 void Workbench::copyConnectionPrompt() {
@@ -399,6 +408,10 @@ bool Workbench::smokeCheck() {
     auto savedResult = invoke({{"action", "save"}, {"folder", folder.path() + "/case"}, {"case", sample}});
     auto opened = invoke({{"action", "open"}, {"folder", folder.path() + "/case"}});
     auto run = invoke({{"action", "run"}, {"mode", "local"}, {"runs_folder", folder.path() + "/runs"}, {"case", sample}});
+    auto story = invoke({{"action", "workflow"}, {"operation", "story_world"},
+        {"database", folder.path() + "/workflow.sqlite3"}, {"world_id", "astral-post-office"}});
+    auto storyCase = story["opened_case"].toObject()["case"].toObject();
     return savedResult["ok"].toBool() && opened["case"].toObject() == sample
-        && run["result"].toObject()["verification"].toString() == "Passed";
+        && run["result"].toObject()["verification"].toString() == "Passed"
+        && storyCase["runner"].toObject()["check"].toString() == "astral_post_office_fixture";
 }

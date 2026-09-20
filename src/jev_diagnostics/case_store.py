@@ -16,8 +16,9 @@ def validate_case(case):
     build_workbench_request(case.get("state"), case.get("primitives"),
                             case.get("instructions"), case.get("model"))
     runner = case.get("runner", {"check": "guest_access_fixture", "iterations": 1})
-    if not isinstance(runner, dict) or runner.get("check") != "guest_access_fixture":
-        raise ValueError("This version supports the named guest_access_fixture check only.")
+    from .workflow.story_worlds import is_registered
+    if not isinstance(runner, dict) or not is_registered(runner.get("check")):
+        raise ValueError("Choose a registered named fixture. Arbitrary commands are not supported.")
     if type(runner.get("iterations")) is not int or not 1 <= runner["iterations"] <= 3:
         raise ValueError("Local checks can repeat between 1 and 3 times.")
     return case

@@ -83,8 +83,9 @@ def create_server(database, host, diagnostic=False):
 
     @server.tool(annotations=write)
     def submit_proposal(case_id: str, expected_revision: str, summary: str, evidence_ids: list[str],
-                        check_id: str, expected_result: str) -> dict[str, Any]:
-        """Submit a concrete named-check proposal. Only guest_access_fixture is supported in this preview."""
+                        check_id: str, expected_result: str, decisions: dict[str, str] | None = None,
+                        rationale: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        """Submit a registered named-check proposal. Story worlds require one decision and rationale per card. This never executes the check."""
         return call('submit_proposal', locals())
 
     @server.tool(annotations=read)

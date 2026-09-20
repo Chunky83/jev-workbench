@@ -14,7 +14,10 @@ developers or service operators.
 
 The current baseline is **0.1.0**: a C++ desktop workspace with a Python engine, a Claude connector, an automatic proposal inbox, explicit approval, and shared results. On Windows, launch the current package with `--local-preview`. See [the workspace map](WORKSPACE.md) for the current package and folders.
 
-The [four-world test kit](test-kits/four-worlds/README.md) has its own folder. Its offline story fixtures are ready for terminal testing; they are not yet wired into the desktop connector.
+The [four-world test kit](test-kits/four-worlds/README.md) is available from the
+desktop **Sample** menu and from its portable terminal runner. Story decisions
+arrive as unverified assistant proposals and run only after exact desktop
+approval; a fixed offline oracle verifies each fictional card.
 
 Read [the desktop guide](docs/desktop.md) for exact first-use steps, file locations, limitations, and build instructions. Keep the portable package together; Python and Qt are bundled. The original diagnostic CLI remains available below.
 

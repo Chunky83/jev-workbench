@@ -56,6 +56,7 @@ ApplicationWindow {
     property var collected: null
     property int resultView: 0
     property string errorMessage: ""
+    property string runnerCheck: "guest_access_fixture"
     // Published model and aliases: https://docs.typesafe.ai/models
     property var publishedModels: ["jev-latest", "jev-1.13.0", "jev-preview"]
 
@@ -84,7 +85,7 @@ ApplicationWindow {
             const outcome = details.outcome
             const assertions = outcome.verification && outcome.verification.assertions ? outcome.verification.assertions : []
             for (const assertion of assertions)
-                text += "\n\n" + assertion.role + ": HTTP " + assertion.status + "; protected content " + (assertion.protected_content_present ? "present" : "absent") + "; " + (assertion.passed ? "PASSED" : "FAILED")
+                text += "\n\n" + root.assertionText(assertion)
             if (outcome.error) text += "\n\n" + outcome.error
             if (outcome.response) {
                 text += "\n\nJev answers are hypotheses."
@@ -100,6 +101,7 @@ ApplicationWindow {
     function openConnections() { rememberFocus(); connectionPanel.connections(); workbench.workflow("status") }
     function openSharing() { rememberFocus(); connectionPanel.sharing(); workbench.workflow("status") }
     function startSample(fresh = false) { if (!root.dirty || workbench.confirmDiscard()) workbench.openSample(fresh) }
+    function startStoryWorld(worldId) { if (!root.dirty || workbench.confirmDiscard()) workbench.openStoryWorld(worldId) }
     function showWorkflowResults(view) {
         const result = {case: view.case, records: view.records || ({})}
         root.rawOutput = JSON.stringify(result, null, 2)
@@ -113,7 +115,7 @@ ApplicationWindow {
         try {
             return JSON.stringify({schema_version: 1, title: testTitle.text, model: modelSelector.currentText,
                 state: JSON.parse(statePane.text), primitives: JSON.parse(primitivesPane.text), instructions: instructionsPane.text,
-                runner: {check: "guest_access_fixture", iterations: repetitions.currentIndex + 1}})
+                runner: {check: root.runnerCheck, iterations: root.runnerCheck === "guest_access_fixture" ? repetitions.currentIndex + 1 : 1}})
         } catch (error) { showError("Check the JSON in State and Primitives. " + error.message); return "" }
     }
     function showError(message) { errorMessage = message; errorDialog.open() }
@@ -129,11 +131,14 @@ ApplicationWindow {
         statePane.text = JSON.stringify(value.state, null, 2)
         primitivesPane.text = JSON.stringify(value.primitives, null, 2)
         instructionsPane.text = value.instructions
+        runnerCheck = value.runner ? value.runner.check : "guest_access_fixture"
         repetitions.currentIndex = value.runner ? value.runner.iterations - 1 : 0
         collected = null
         resultKind = "Ready"
         rawOutput = ""
-        summaryOutput = "Ready to check " + value.title + ".\n\nRun sample checks below, or share the saved case with an assistant. Local checks use a synthetic fixture; they do not test a real project."
+        summaryOutput = runnerCheck === "guest_access_fixture"
+            ? "Ready to check " + value.title + ".\n\nRun sample checks below, or share the saved case with an assistant. Local checks use a synthetic fixture; they do not test a real project."
+            : "Ready to explore " + value.title + ".\n\nShare this fictional case with an assistant. Its decisions remain an unverified proposal until you approve the exact named local fixture."
         loading = false; dirty = false
         Qt.callLater(function() { statePane.showStart(); primitivesPane.showStart(); instructionsPane.showStart() })
     }
@@ -151,6 +156,11 @@ ApplicationWindow {
             primitivesPane.text = JSON.stringify(questions, null, 2)
         } catch (error) { showError("Fix the Primitives JSON before adding a question.") }
     }
+    function assertionText(assertion) {
+        if (assertion.decision !== undefined)
+            return (assertion.name || assertion.id) + ": chose " + assertion.decision + "; fixture expected " + assertion.expected_decision + "; " + (assertion.passed ? "PASSED" : "FAILED")
+        return assertion.role + ": HTTP " + assertion.status + "; protected content " + (assertion.protected_content_present ? "present" : "absent") + "; " + (assertion.passed ? "PASSED" : "FAILED")
+    }
     function describeResult(result) {
         let text = result.summary + "\n\n"
         text += "Verification: " + result.verification + "\nStatus: " + result.status + "\nElapsed: " + result.elapsed_seconds + " seconds\n"
@@ -158,7 +168,7 @@ ApplicationWindow {
         if (result.checks) {
             text += "\nCompleted iterations: " + result.iterations.length + "\n"
             text += "\n" + result.checks.source + "\nVerification: " + result.verification + "\n"
-            for (let item of result.checks.observations) text += "\n" + item.id + "  " + item.role + " → HTTP " + item.status + "\nProtected content present: " + item.protected_content_present + "\nAssertion: " + (item.passed ? "PASSED" : "FAILED") + "\n"
+            for (let item of result.checks.observations) text += "\n" + root.assertionText(item) + "\n"
         }
         if (result.response) {
             text += "\nModel: " + result.response.model + "\nVerification: not performed\n"
@@ -453,7 +463,7 @@ ApplicationWindow {
                 anchors.fill: parent; anchors.margins: 12; spacing: 14
                 BlockButton { id: actionsButton; colors: root.colors; text: "Actions ↑"; enabled: !workbench.busy; onClicked: actionsMenu.popup(actionsButton, 0, -actionsMenu.height) }
                 Text {
-                    text: runMode.currentIndex === 0 ? "Synthetic fixture • no API cost" : "Sends State to TypeSafe • uses API credits"
+                    text: runMode.currentIndex === 0 ? (root.runnerCheck === "guest_access_fixture" ? "Synthetic fixture • no API cost" : "Story fixtures run only after proposal approval") : "Sends State to TypeSafe • uses API credits"
                     color: root.colors.ink; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.Wrap
                 }
                 ThemeComboBox {
@@ -472,13 +482,15 @@ ApplicationWindow {
                 ThemeComboBox {
                     colors: root.colors
                     id: repetitions; model: ["1 pass", "2 passes", "3 passes"]
-                    visible: runMode.currentIndex === 0; enabled: !workbench.busy
+                    visible: runMode.currentIndex === 0 && root.runnerCheck === "guest_access_fixture"; enabled: !workbench.busy
                     onActivated: root.markDirty()
                     Accessible.name: "Local check repetitions"
                 }
                 BlockButton { colors: root.colors; text: "Preview request"; enabled: !workbench.busy; onClicked: { let text = root.document(); if (text) workbench.preview(text) } }
                 BlockButton {
-                    id: runButton; objectName: "runButton"; colors: root.colors; primary: true; text: workbench.busy ? "Stop" : (runMode.currentIndex === 0 ? "Run sample checks" : "Ask Jev")
+                    id: runButton; objectName: "runButton"; colors: root.colors; primary: true
+                    enabled: workbench.busy || runMode.currentIndex === 1 || root.runnerCheck === "guest_access_fixture"
+                    text: workbench.busy ? "Stop" : (runMode.currentIndex === 0 ? (root.runnerCheck === "guest_access_fixture" ? "Run sample checks" : "Approve proposal to run") : "Ask Jev")
                     onClicked: {
                         if (workbench.busy) workbench.cancel()
                         else { let text = root.document(); if (text) workbench.evaluate(text, runMode.currentIndex === 0 ? "local" : "live") }
@@ -539,6 +551,11 @@ ApplicationWindow {
         id: sampleMenu; palette.window: root.colors.surface; palette.text: root.colors.ink
         ThemeMenuItem { colors: root.colors; text: "Open existing sample"; onTriggered: root.startSample(false) }
         ThemeMenuItem { colors: root.colors; text: "Create new sample"; onTriggered: root.startSample(true) }
+        MenuSeparator {}
+        ThemeMenuItem { colors: root.colors; text: "The Astral Post Office"; onTriggered: root.startStoryWorld("astral-post-office") }
+        ThemeMenuItem { colors: root.colors; text: "The Lantern Room"; onTriggered: root.startStoryWorld("lantern-room") }
+        ThemeMenuItem { colors: root.colors; text: "The Museum of Tiny Planets"; onTriggered: root.startStoryWorld("museum-of-tiny-planets") }
+        ThemeMenuItem { colors: root.colors; text: "The Pocket Weather Bureau"; onTriggered: root.startStoryWorld("pocket-weather-bureau") }
     }
     Menu {
         id: actionsMenu

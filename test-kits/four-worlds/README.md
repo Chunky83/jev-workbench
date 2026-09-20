@@ -50,19 +50,19 @@ decisions object:
 The runner reports every individual card and exits with a nonzero status when a
 decision is missing, invalid, or wrong.
 
-## Future Workbench connector contract
+## Workbench connector contract
 
-The current preview only has an unrelated guest-access fixture. These worlds
-are deliberately kept as a ready-to-wire pack rather than pretending that they
-already run through that fixture.
+The desktop **Sample** menu opens each world as a private saved case. After the
+user explicitly shares that case, an assistant may submit a bounded named-fixture
+proposal with typed decisions and rationales. Submission does not run anything;
+the user reviews and approves the exact proposal in Workbench.
 
-When the story-world runner is added to Workbench, each case should use a
-bounded named fixture and a typed proposal payload:
+Each proposal uses this inputs shape (shortened here; the submitted object must
+include all five decisions and all five rationale entries):
 
     {
       "world_id": "astral-post-office",
       "case_version": 1,
-      "runner_id": "astral_post_office_fixture",
       "decisions": {
         "violet-envelope": "deliver"
       },
@@ -75,13 +75,14 @@ bounded named fixture and a typed proposal payload:
       ]
     }
 
-The local fixture should compare decisions with that world's oracle and report
-every card as passed, failed, or incomplete. It should not make a network call,
+The stored proposal carries the registered runner ID alongside these inputs. The
+local fixture compares decisions with that world's oracle and reports every card
+as passed or failed. It does not make a network call,
 inspect project files, invoke arbitrary commands, or turn a fictional story
 result into a real-world claim.
 
-For the connector experience, a valid incoming proposal should immediately
-reveal a single review card in Workbench. The review card needs to show:
+For the connector experience, a valid incoming proposal reveals a single review
+card in Workbench. The review card shows:
 
 1. the assistant's decisions and short evidence citations;
 2. the exact named local fixture that would run;

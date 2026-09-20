@@ -16,6 +16,8 @@ An observed Claude request is historical activity, not a live account-login chec
    is needed. Results shows what was observed; this does not test a real project.
 2. Use **Sample > Open existing sample** for a saved example with a proposed check to review. The
    review appears beside the editors. Inspect its scope and approve it once.
+   Or choose one of the four named story worlds in the same menu, share it with
+   an assistant, and review its decisions and cited fictional facts before approval.
 3. Use **Share case** to choose assistant access. Save current edits before
    sharing. After sharing with Claude, **Copy request for Claude** copies the
    exact case ID so identically named samples cannot be confused.
@@ -51,6 +53,9 @@ open. Dates and the short reference distinguish same-named cases.
 
 **Sample > Open existing sample** reuses the latest available sample, creating one
 only when none exists. **Sample > Create new sample** makes a separate case.
+The four named story-world entries each reuse a private saved copy. Their bottom
+taskbar explains that the named fixture cannot run directly: share the saved case,
+ask an assistant for the typed proposal, and approve that exact proposal in Inbox.
 **Cases > Archive** asks for confirmation, revokes assistant access, and removes the
 case from Active. Files and records are retained. Choose Archived and Restore to
 bring it back privately; sharing must be approved again. Incomplete runs must be
@@ -73,7 +78,13 @@ from the catalog. The model control appears when Jev assessment is selected.
 
 ## What runs
 
-Local checks run the built-in guest-access fixture, regardless of the editable evidence. The bottom taskbar labels this clearly. Choose one, two, or three passes; the loop stops on an assertion failure. This is an executable learning example, not a security assessment of an external website.
+Direct **Sample checks** run the built-in guest-access fixture, regardless of the
+editable evidence. The bottom taskbar labels this clearly. Choose one, two, or
+three passes; the loop stops on an assertion failure. Story-world fixtures take
+their decisions only from a complete assistant proposal, remain disabled until
+desktop approval, and compare those exact decisions with a bundled offline
+oracle. Both paths are executable learning examples, not assessments of an
+external website, project, person, or service.
 
 Live Jev sends one request with your editable evidence. It does not run local checks first or modify your evidence. No automatic retries or model-selected commands execute. Jev answers are hypotheses; confidence is not verified accuracy. Live requests have not been exercised during this build; response handling is tested with synthetic responses.
 

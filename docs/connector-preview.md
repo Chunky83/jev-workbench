@@ -98,8 +98,10 @@ Assistant observations are explicitly unverified, regardless of their text or re
 
 ## Current limits
 
-Only the existing synthetic HTTP fixture is registered. No arbitrary shell, project command,
-patch application, collectors, external URL scanner or real issue verification is implemented.
+The synthetic HTTP fixture and four fictional story-world fixtures are registered.
+Story proposals require one allowed decision and bounded rationale per card, and
+the fixed local oracle runs only after exact desktop approval. No arbitrary shell,
+project command, patch application, collectors, external URL scanner or real issue verification is implemented.
 A real diagnostic scenario remains to be defined. A failing fixture cannot be labeled passed.
 Stop records an interrupted outcome; an abrupt application crash may leave an incomplete
 run, which is never treated as passed. ChatGPT tunnel authentication and account-side
