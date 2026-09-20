@@ -1,0 +1,19 @@
+{
+  "world_id": "museum-of-tiny-planets",
+  "case_version": 1,
+  "visibility": "local fixture only; do not share with assistants",
+  "expected_decisions": {
+    "pollen-six": "place_in_orbitarium",
+    "cracked-bay": "send_to_repair_bench",
+    "whisper-globe": "observe_before_cataloging",
+    "oaklet": "place_in_orbitarium",
+    "sleeper-pebble": "observe_before_cataloging"
+  },
+  "explanations": {
+    "pollen-six": "It has a recorded name and origin plus a stable orbit.",
+    "cracked-bay": "It has a recorded name and origin, but a supplied atmospheric defect needs care.",
+    "whisper-globe": "No identity, origin, or orbit observation is supplied.",
+    "oaklet": "It has a recorded name and origin plus a stable orbit.",
+    "sleeper-pebble": "Its origin is present, but no orbit observation establishes stability or a repairable defect."
+  }
+}

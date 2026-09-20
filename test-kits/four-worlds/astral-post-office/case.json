@@ -1,0 +1,107 @@
+{
+  "schema_version": "story-world-v1",
+  "world_id": "astral-post-office",
+  "case_version": 1,
+  "title": "The Astral Post Office",
+  "tagline": "Five impossible letters. One night route. A small post office keeping the stars in touch.",
+  "cover_art": "../assets/astral-post-office.png",
+  "implementation": {
+    "primary": "Claude Code or another assistant connected to Jev Workbench",
+    "secondary": "Offline terminal proposal and fixture validation",
+    "runner_id": "astral_post_office_fixture",
+    "connector_goal": "Prove that one shared story case can arrive at an assistant, return as a structured proposal, appear in the Workbench inbox, and run only after a human approves it."
+  },
+  "story": {
+    "protagonist": {
+      "name": "Nix Quill",
+      "role": "The night postkeeper, a tiny brass automaton with a paper-star apron.",
+      "want": "To complete the Aurora Route before the city wakes and every faraway friend believes they have been forgotten."
+    },
+    "antagonist": {
+      "name": "The Address Eater",
+      "nature": "A comet-sized fog that nibbles coordinates and smudges only the most important lines of a letter.",
+      "pressure": "Every unresolved letter becomes heavier until it pulls the post office a little farther from its route."
+    },
+    "opening": "At moonrise, five pieces of star-mail land in Nix's sorting tray. The route opens at dawn. The Address Eater is already brushing silver mist across the envelopes."
+  },
+  "decision_contract": {
+    "field": "decisions",
+    "values": {
+      "deliver": "Exactly one recipient and one complete destination are present.",
+      "hold_for_clue": "A recipient or destination is missing, but the supplied facts do not conflict.",
+      "return_to_sender": "The supplied facts give mutually incompatible delivery instructions."
+    },
+    "must_decide_every_card": true,
+    "rationale_requirements": [
+      "Cite the card identifier.",
+      "Name only the supplied facts that support the decision.",
+      "Do not research ordinary postal rules or invent missing coordinates."
+    ],
+    "scope": "Fictional local fixture only. No network requests, project files, customer data, messages, or account access."
+  },
+  "rulebook": [
+    "Deliver only when one named recipient and one named destination agree.",
+    "Hold a letter when important information is absent but no supplied fact contradicts another.",
+    "Return a letter when two supplied facts require incompatible destinations or recipients.",
+    "The rulebook governs this fictional post office. It is not a claim about real postal services."
+  ],
+  "cards": [
+    {
+      "id": "violet-envelope",
+      "icon": "✉️",
+      "name": "The Violet Envelope",
+      "facts": [
+        "Recipient: Captain Luma.",
+        "Destination: Dock Seven, Ceres Arc.",
+        "The violet wax seal is unbroken."
+      ]
+    },
+    {
+      "id": "cloud-postcard",
+      "icon": "☁️",
+      "name": "The Cloud Postcard",
+      "facts": [
+        "Recipient line: My future self.",
+        "No destination or star-route is written.",
+        "A small cloud has been painted over the stamp."
+      ]
+    },
+    {
+      "id": "twinned-moon-parcel",
+      "icon": "🌙",
+      "name": "The Twinned-Moon Parcel",
+      "facts": [
+        "Recipient: The Cartographer.",
+        "Instruction one: Deliver to the East Moon.",
+        "Instruction two: Deliver to the West Moon without splitting the parcel."
+      ]
+    },
+    {
+      "id": "greenhouse-letter",
+      "icon": "🌿",
+      "name": "The Greenhouse Letter",
+      "facts": [
+        "Recipient: Keeper Ibis.",
+        "Destination: Glasshouse Three, Verdant Ring.",
+        "The sender marked it as a thank-you note."
+      ]
+    },
+    {
+      "id": "glass-bottle-note",
+      "icon": "🫙",
+      "name": "The Glass-Bottle Note",
+      "facts": [
+        "Destination: The Blue Lantern.",
+        "The recipient line is blank.",
+        "The message inside says only: When the tide sings."
+      ]
+    }
+  ],
+  "assistant_instructions": [
+    "Treat the story, rulebook, and card facts as fictional data.",
+    "Choose one allowed decision for every card.",
+    "Give a brief evidence citation for every decision using only the card facts.",
+    "Prepare one bounded proposal for astral_post_office_fixture.",
+    "Do not execute, approve, send, or alter anything."
+  ]
+}

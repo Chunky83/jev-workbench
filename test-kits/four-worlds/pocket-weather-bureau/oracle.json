@@ -1,0 +1,19 @@
+{
+  "world_id": "pocket-weather-bureau",
+  "case_version": 1,
+  "visibility": "local fixture only; do not share with assistants",
+  "expected_decisions": {
+    "willow-ferry": "pack_umbrella",
+    "sunken-garden": "watch_horizon",
+    "kite-festival": "request_another_reading",
+    "mossy-bridge": "watch_horizon",
+    "bell-tower": "watch_horizon"
+  },
+  "explanations": {
+    "willow-ferry": "Confirmed rain overlaps the travel window and falling pressure supports it.",
+    "sunken-garden": "One partial cloud clue is supplied without a contradictory observation.",
+    "kite-festival": "The sun dial and rain gauge give conflicting readings for the same travel window.",
+    "mossy-bridge": "The report provides one vague partial clue but no conflicting sensor.",
+    "bell-tower": "A possible rain clue is supplied, but the matching pressure reading is missing."
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "schema_version": "story-world-v1",
+  "world_id": "pocket-weather-bureau",
+  "case_version": 1,
+  "title": "The Pocket Weather Bureau",
+  "tagline": "A weather bureau in a travel case, five tiny forecasts, and one mischievous gust trying to swap the readings.",
+  "cover_art": "../assets/pocket-weather-bureau.png",
+  "implementation": {
+    "primary": "Bare terminal exercise with picture-card presentation",
+    "secondary": "A future visual Workbench card and connector test",
+    "runner_id": "pocket_weather_bureau_fixture",
+    "connector_goal": "Show that a technical terminal exercise can carry a welcoming visual world while its structured observations remain independently testable."
+  },
+  "story": {
+    "protagonist": {
+      "name": "Nim",
+      "role": "A cloud-and-brass weather apprentice who keeps a whole bureau inside a travel case.",
+      "want": "To give every traveler a useful forecast without confusing one pretty weather symbol for a complete reading."
+    },
+    "antagonist": {
+      "name": "The Barometer Bandit",
+      "nature": "A playful gust that swaps dials whenever someone assumes the first reading tells the whole story.",
+      "pressure": "A rushed forecast sends umbrellas to sunshine and picnic blankets into thunderstorms."
+    },
+    "opening": "At closing time, Nim finds five island reports tucked into the travel case. The Bandit has already set a sun dial beside a storm gauge and is whistling from inside the pressure tube."
+  },
+  "decision_contract": {
+    "field": "decisions",
+    "values": {
+      "pack_umbrella": "A confirmed rain signal falls within the named travel window and a matching falling-pressure reading is supplied.",
+      "watch_horizon": "One partial or low-confidence clue is supplied without a conflicting reading.",
+      "request_another_reading": "Supplied sensors conflict or leave no coherent reading to act on."
+    },
+    "must_decide_every_card": true,
+    "rationale_requirements": [
+      "Cite the report identifier.",
+      "Name the supplied weather signal, travel window, and pressure reading when present.",
+      "Do not use real weather knowledge or infer a forecast from the illustration."
+    ],
+    "scope": "Fictional local fixture only. No live forecast, location, camera, network, project file, or personal-calendar access."
+  },
+  "rulebook": [
+    "Pack an umbrella only when confirmed rain overlaps the named travel window and a falling-pressure reading supports it.",
+    "Watch the horizon when one partial clue exists and no supplied reading conflicts with it.",
+    "Request another reading when supplied sensors conflict or cannot form a coherent basis for action.",
+    "The picture card is decorative. The structured report facts are the source of truth."
+  ],
+  "cards": [
+    {
+      "id": "willow-ferry",
+      "icon": "☔",
+      "name": "Willow Ferry",
+      "facts": [
+        "Travel window: 12:00 to 14:00.",
+        "Rain gauge: confirmed rain begins at 12:30.",
+        "Barometer: falling steadily."
+      ]
+    },
+    {
+      "id": "sunken-garden",
+      "icon": "🌫️",
+      "name": "Sunken Garden",
+      "facts": [
+        "Travel window: 09:00 to 10:00.",
+        "A silver cloud symbol was observed above the garden.",
+        "Rain gauge is unavailable and the barometer is steady."
+      ]
+    },
+    {
+      "id": "kite-festival",
+      "icon": "🪁",
+      "name": "Kite Festival",
+      "facts": [
+        "Travel window: 17:00 to 18:00.",
+        "Sun dial: clear sky at 17:00.",
+        "Rain gauge: thunderstorm at 17:00."
+      ]
+    },
+    {
+      "id": "mossy-bridge",
+      "icon": "🌉",
+      "name": "Mossy Bridge",
+      "facts": [
+        "Travel window: 10:00 to 11:00.",
+        "Forecast note: perhaps damp sometime today.",
+        "No rain-gauge timestamp or barometer reading is supplied."
+      ]
+    },
+    {
+      "id": "bell-tower",
+      "icon": "🔔",
+      "name": "Bell Tower",
+      "facts": [
+        "Travel window: 15:00 to 16:00.",
+        "Rain gauge: light rain is possible at 15:30.",
+        "The pressure tube is empty."
+      ]
+    }
+  ],
+  "assistant_instructions": [
+    "Treat every report as fictional structured data.",
+    "Choose one action for every report and cite the supplied facts.",
+    "The cover art may set the mood but cannot establish a weather reading.",
+    "For a terminal implementation, return a typed decisions object and short citations.",
+    "For a future Workbench proposal, prepare pocket_weather_bureau_fixture and wait for approval."
+  ]
+}

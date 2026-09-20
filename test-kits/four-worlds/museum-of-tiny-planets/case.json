@@ -1,0 +1,107 @@
+{
+  "schema_version": "story-world-v1",
+  "world_id": "museum-of-tiny-planets",
+  "case_version": 1,
+  "title": "The Museum of Tiny Planets",
+  "tagline": "Five worlds fit on a workbench. Only a careful curator can keep their stories in orbit.",
+  "cover_art": "../assets/museum-of-tiny-planets.png",
+  "implementation": {
+    "primary": "Bare terminal and deterministic local code",
+    "secondary": "A future Workbench review case with visual specimen cards",
+    "runner_id": "museum_of_tiny_planets_fixture",
+    "connector_goal": "Demonstrate a clean typed input and output contract that is delightful even when rendered as plain terminal text."
+  },
+  "story": {
+    "protagonist": {
+      "name": "Mio Vesper",
+      "role": "An apprentice curator who can hear a tiny planet hum when its history is being misplaced.",
+      "want": "To give every world a truthful home before the midnight exhibition opens."
+    },
+    "antagonist": {
+      "name": "The Drift",
+      "nature": "A quiet force that unthreads the orbit of any world described with more confidence than evidence.",
+      "pressure": "A planet filed in the wrong room loses one small piece of its sky."
+    },
+    "opening": "Five glass cases arrive at the museum after an uncharted meteor shower. Mio has one hour, a ledger of facts, and no permission to invent the missing pages."
+  },
+  "decision_contract": {
+    "field": "decisions",
+    "values": {
+      "place_in_orbitarium": "The specimen has a recorded origin or name and a stable orbit, so it can be displayed.",
+      "send_to_repair_bench": "The specimen has a recorded identity but an unstable orbit or damaged atmosphere that needs care.",
+      "observe_before_cataloging": "The supplied facts do not establish enough about origin, identity, or stability to place it safely."
+    },
+    "must_decide_every_card": true,
+    "rationale_requirements": [
+      "Cite the specimen identifier.",
+      "State which supplied fact establishes identity and which establishes stability.",
+      "Do not infer an origin from a color, glow, or mood."
+    ],
+    "scope": "Fictional local fixture only. No astronomy data, network calls, project files, or live model request is required."
+  },
+  "rulebook": [
+    "A specimen belongs in the Orbitarium only when its identity or origin is recorded and its orbit is stable.",
+    "A specimen belongs at the Repair Bench when it has a recorded identity or origin and a supplied defect needs care.",
+    "A specimen belongs under the Observatory when the supplied facts leave its identity, origin, or stability uncertain.",
+    "The museum's categories are fictional and exist only for this test world."
+  ],
+  "cards": [
+    {
+      "id": "pollen-six",
+      "icon": "🪐",
+      "name": "Pollen Six",
+      "facts": [
+        "Ledger name: Pollen Six.",
+        "Origin: the Orchard Belt.",
+        "Orbit: stable for 400 recorded loops."
+      ]
+    },
+    {
+      "id": "cracked-bay",
+      "icon": "🌊",
+      "name": "Cracked Bay",
+      "facts": [
+        "Ledger name: Cracked Bay.",
+        "Origin: the Lantern Gulf.",
+        "Atmosphere: visibly fractured and losing blue light."
+      ]
+    },
+    {
+      "id": "whisper-globe",
+      "icon": "✨",
+      "name": "The Whisper Globe",
+      "facts": [
+        "The globe glows green when a visitor speaks.",
+        "No origin, name, or orbit observation is recorded.",
+        "The case arrived without a ledger tag."
+      ]
+    },
+    {
+      "id": "oaklet",
+      "icon": "🌳",
+      "name": "Oaklet",
+      "facts": [
+        "Ledger name: Oaklet.",
+        "Origin: the Garden Spiral.",
+        "Orbit: stable, with three moons that keep regular time."
+      ]
+    },
+    {
+      "id": "sleeper-pebble",
+      "icon": "🫧",
+      "name": "The Sleeper Pebble",
+      "facts": [
+        "Origin: the Distant Shelf.",
+        "No orbit observation has been recorded.",
+        "The pebble may be asleep or may simply be a stone."
+      ]
+    }
+  ],
+  "assistant_instructions": [
+    "Treat every specimen fact as fictional test data.",
+    "Choose one placement for every specimen.",
+    "Do not use real astronomy knowledge to fill missing observations.",
+    "For a terminal implementation, emit only the typed decisions and short card citations.",
+    "For a future Workbench proposal, prepare museum_of_tiny_planets_fixture and wait for approval."
+  ]
+}

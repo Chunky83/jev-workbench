@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jev-diagnostics"
+dynamic = ["version"]
+description = "Evidence-first software diagnostics with TypeSafe Jev"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+connectors = ["mcp==1.30.0"]
+
+[project.scripts]
+jev-workbench-mcp = "jev_diagnostics.connectors.mcp_server:main"
+jev-diagnostics = "jev_diagnostics.main:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.dynamic]
+version = {file = ["VERSION.txt"]}
+
+[tool.setuptools.packages.find]
+where = ["src"]

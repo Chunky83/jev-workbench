@@ -1,0 +1,26 @@
+{
+  "issue": {
+    "number": 1,
+    "title": "Fictional demo: request exceeded a client deadline",
+    "url": "https://example.com/issues/1"
+  },
+  "environment": "test",
+  "service": "backend",
+  "reported_behavior": "A fictional test client reports a timeout after five seconds.",
+  "verified_observations": [
+    {
+      "id": "E001",
+      "source": "synthetic_fixture",
+      "observed_at": "2026-01-01T00:00:00Z",
+      "text": "Illustrative fixture data: the server returned status 200 after eight seconds. These values are invented for this example, not measurements of a real service."
+    }
+  ],
+  "unverified_claims": [
+    {
+      "id": "U001",
+      "text": "The test client stopped waiting after five seconds.",
+      "reason": "No client trace is included in this fictional example."
+    }
+  ],
+  "source_locations": []
+}

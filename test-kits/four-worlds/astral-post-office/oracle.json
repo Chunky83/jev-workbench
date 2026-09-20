@@ -1,0 +1,19 @@
+{
+  "world_id": "astral-post-office",
+  "case_version": 1,
+  "visibility": "local fixture only; do not share with assistants",
+  "expected_decisions": {
+    "violet-envelope": "deliver",
+    "cloud-postcard": "hold_for_clue",
+    "twinned-moon-parcel": "return_to_sender",
+    "greenhouse-letter": "deliver",
+    "glass-bottle-note": "hold_for_clue"
+  },
+  "explanations": {
+    "violet-envelope": "One named recipient and one complete destination agree.",
+    "cloud-postcard": "The recipient is poetic rather than deliverable, and no destination is supplied.",
+    "twinned-moon-parcel": "The parcel must stay whole but is assigned two incompatible destinations.",
+    "greenhouse-letter": "One named recipient and one complete destination agree.",
+    "glass-bottle-note": "A destination is supplied, but the recipient is absent and no facts conflict."
+  }
+}

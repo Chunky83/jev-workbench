@@ -1,0 +1,258 @@
+{
+  "workflow_schema_version": 1,
+  "tools": [
+    {
+      "name": "list_cases",
+      "description": "List only cases the user explicitly shared with this connection.",
+      "inputSchema": {
+        "properties": {},
+        "title": "list_casesArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "list_casesDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "read_case",
+      "description": "Read the saved shared snapshot, current revision, and bounded assistant evidence.",
+      "inputSchema": {
+        "properties": {
+          "case_id": {
+            "title": "Case Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "case_id"
+        ],
+        "title": "read_caseArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "read_caseDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "submit_evidence",
+      "description": "Append an immutable selected excerpt (16 KB max). Omit secrets and private identifiers.",
+      "inputSchema": {
+        "properties": {
+          "case_id": {
+            "title": "Case Id",
+            "type": "string"
+          },
+          "expected_revision": {
+            "title": "Expected Revision",
+            "type": "string"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          }
+        },
+        "required": [
+          "case_id",
+          "expected_revision",
+          "content",
+          "origin"
+        ],
+        "title": "submit_evidenceArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "submit_evidenceDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "propose_state",
+      "description": "Queue state for desktop review; never replace desktop edits or the shared snapshot.",
+      "inputSchema": {
+        "properties": {
+          "case_id": {
+            "title": "Case Id",
+            "type": "string"
+          },
+          "expected_revision": {
+            "title": "Expected Revision",
+            "type": "string"
+          },
+          "state": {
+            "additionalProperties": true,
+            "title": "State",
+            "type": "object"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "case_id",
+          "expected_revision",
+          "state",
+          "evidence_ids"
+        ],
+        "title": "propose_stateArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "propose_stateDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "evaluate_case",
+      "description": "Spend one user-enabled TypeSafe evaluation on the exact shared snapshot. No automatic retry.",
+      "inputSchema": {
+        "properties": {
+          "case_id": {
+            "title": "Case Id",
+            "type": "string"
+          },
+          "expected_revision": {
+            "title": "Expected Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "case_id",
+          "expected_revision"
+        ],
+        "title": "evaluate_caseArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "evaluate_caseDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "submit_proposal",
+      "description": "Submit a concrete named-check proposal. Only guest_access_fixture is supported in this preview.",
+      "inputSchema": {
+        "properties": {
+          "case_id": {
+            "title": "Case Id",
+            "type": "string"
+          },
+          "expected_revision": {
+            "title": "Expected Revision",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "check_id": {
+            "title": "Check Id",
+            "type": "string"
+          },
+          "expected_result": {
+            "title": "Expected Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "case_id",
+          "expected_revision",
+          "summary",
+          "evidence_ids",
+          "check_id",
+          "expected_result"
+        ],
+        "title": "submit_proposalArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "submit_proposalDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "read_run",
+      "description": "Read a run and independent assertion outcomes. Incomplete runs never count as passed.",
+      "inputSchema": {
+        "properties": {
+          "case_id": {
+            "title": "Case Id",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "case_id",
+          "run_id"
+        ],
+        "title": "read_runArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "read_runDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    }
+  ]
+}
