@@ -115,11 +115,15 @@ Pane {
     }
     function results(view) {
         const data = view.records || ({})
-        const checks = (data.outcome || []).filter(x => x.checks !== undefined || x.status === "interrupted")
+        const approvedRunIds = (data.run || []).filter(x => x.approval_id !== undefined).map(x => x.id)
+        const checks = (data.outcome || []).filter(x => approvedRunIds.indexOf(x.run_id) >= 0)
         const latest = checks.length ? checks[0] : null
-        let text = latest ? (latest.status === "interrupted" ? "INTERRUPTED. Verification not performed." : latest.verification.status.toUpperCase() + " / " + latest.verification.scope) : "No verified check result yet."
+        let text = !latest ? "No verified check result yet."
+            : latest.status === "failed" ? "FAILED. Verification not performed."
+            : latest.status === "interrupted" ? "INTERRUPTED. Verification not performed."
+            : latest.verification.status.toUpperCase() + " / " + latest.verification.scope
         text += "\n\nCASE: " + (view.case ? view.case.snapshot.title + " · " + view.case.case_id.slice(-8) : "No case") + "\n"
-        if (latest && latest.status !== "interrupted") {
+        if (latest && latest.checks !== undefined) {
             for (let assertion of latest.verification.assertions)
                 text += "\n" + assertion.role + ": HTTP " + assertion.status + "; protected content " + (assertion.protected_content_present ? "present" : "absent") + "; " + (assertion.passed ? "PASSED" : "FAILED")
         }
