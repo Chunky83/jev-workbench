@@ -8,6 +8,7 @@ import sys
 
 ZERO_SHA = "0" * 40
 GENERIC_GITHUB_EMAIL = "noreply@users.noreply.github.com"
+SHARED_CONTRIBUTOR_EMAIL = "contributors@users.noreply.github.com"
 
 
 def git(*arguments: str) -> str:
@@ -35,6 +36,8 @@ def unsafe_reason(email: str) -> str | None:
         return "the email address is missing"
     if lowered == GENERIC_GITHUB_EMAIL:
         return "the generic GitHub no-reply address belongs to another account"
+    if lowered == SHARED_CONTRIBUTOR_EMAIL:
+        return "the shared contributors address is not tied to the intended GitHub account"
     if "your_id+" in lowered:
         return "the email address still contains the YOUR_ID placeholder"
     return None
