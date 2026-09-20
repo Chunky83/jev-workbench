@@ -96,9 +96,15 @@ class StoryWorldTests(unittest.TestCase):
         edited = dict(original["case"], instructions="My saved variation")
         save_case(original["folder"], edited)
         reopened = create_saved_case(store, "lantern-room")
+        reopened_again = create_saved_case(store, "lantern-room")
         self.assertNotEqual(reopened["folder"], original["folder"])
+        self.assertEqual(reopened_again, reopened)
         self.assertEqual(load_case(original["folder"])["instructions"], "My saved variation")
         self.assertEqual(reopened["case"], workbench_case("lantern-room"))
+        with store.transaction() as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM cases").fetchone()[0], 2)
+        folders = [path for path in (self.root / "story-worlds").iterdir() if path.is_dir()]
+        self.assertEqual(len(folders), 2)
 
     def test_exact_story_proposal_runs_only_after_desktop_approval(self):
         store, case, tools, result = self.submit("lantern-room")

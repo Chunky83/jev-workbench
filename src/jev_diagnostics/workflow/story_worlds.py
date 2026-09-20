@@ -104,19 +104,48 @@ def fixture_digest(world_id):
     return sha256(encoded).hexdigest()
 
 
+def _matches_registered_world(case, expected):
+    return all(case.get(name) == expected[name]
+               for name in ("state", "primitives", "instructions", "runner"))
+
+
+def _registered_pristine_copy(store, world_id, expected, canonical):
+    from ..case_store import load_case
+
+    root = canonical.parent.resolve()
+    prefix = world_id + "-"
+    with store.transaction() as db:
+        sources = [row["source"] for row in
+                   db.execute("SELECT source FROM cases ORDER BY rowid DESC").fetchall()]
+    for source in sources:
+        folder = Path(source).resolve()
+        if folder == canonical or folder.parent != root or not folder.name.startswith(prefix):
+            continue
+        try:
+            case = load_case(folder)
+        except (OSError, ValueError, KeyError, TypeError):
+            continue
+        if _matches_registered_world(case, expected):
+            return folder, case
+    return None
+
+
 def create_saved_case(store, world_id):
     from ..case_store import load_case, save_case
     from .library import register
 
     expected = workbench_case(world_id)
-    folder = store.path.parent / "story-worlds" / world_id
+    folder = (store.path.parent / "story-worlds" / world_id).resolve()
     if (folder / "test.json").is_file():
         case = load_case(folder)
-        if any(case.get(name) != expected[name]
-               for name in ("state", "primitives", "instructions", "runner")):
-            folder = folder.with_name(world_id + "-" + uuid4().hex[:8])
-            case = expected
-            save_case(folder, case)
+        if not _matches_registered_world(case, expected):
+            replacement = _registered_pristine_copy(store, world_id, expected, folder)
+            if replacement:
+                folder, case = replacement
+            else:
+                folder = folder.with_name(world_id + "-" + uuid4().hex[:8])
+                case = expected
+                save_case(folder, case)
     else:
         case = expected
         save_case(folder, case)
