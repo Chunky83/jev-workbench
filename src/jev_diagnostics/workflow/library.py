@@ -78,6 +78,18 @@ def verification_text(value):
     return value.get('status', 'Not performed') if isinstance(value, dict) else str(value or 'Not performed')
 
 
+def approved_check_summary(run, outcome, proposals):
+    checks = outcome.get('checks', {}) if outcome else {}
+    source = checks.get('source') if isinstance(checks, dict) else None
+    if isinstance(source, str) and source.strip():
+        return source
+    proposal = proposals.get(run.get('proposal_id'), {})
+    check_id = proposal.get('check_id')
+    if isinstance(check_id, str) and check_id:
+        return 'Registered check ' + check_id + '; no real project was checked.'
+    return 'Registered synthetic check; no real project was checked.'
+
+
 def events_for(store, db, case_id, runs):
     events = []
     if case_id:
@@ -94,6 +106,7 @@ def events_for(store, db, case_id, runs):
                     'proposal_id': item['id'] if kind == 'proposal' else item.get('proposal_id', ''),
                     'details': item})
         outcomes = {x['run_id']: x for x in records['outcome']}
+        proposals = {x['id']: x for x in records['proposal']}
         for run in records['run']:
             outcome = outcomes.get(run['id'])
             assessment = run.get('kind') == 'jev_assessment'
@@ -102,7 +115,8 @@ def events_for(store, db, case_id, runs):
                 'label': 'Jev assessment' if assessment else 'Approved sample check',
                 'actor': 'assistant workflow', 'status': outcome['status'] if outcome else 'incomplete',
                 'verification': verification_text(outcome.get('verification')) if outcome else 'Not performed',
-                'summary': 'Model judgment; independent verification required.' if assessment else 'Synthetic guest-access fixture; no real project was checked.',
+                'summary': ('Model judgment; independent verification required.' if assessment
+                            else approved_check_summary(run, outcome, proposals)),
                 'proposal_id': run.get('proposal_id', ''),
                 'details': {'run': run, 'outcome': outcome}})
     for result in runs:

@@ -9,6 +9,7 @@ import unittest
 
 from jev_diagnostics.case_store import load_case, save_case, validate_case
 from jev_diagnostics.connectors.tool_handlers import Tools
+from jev_diagnostics.workflow import library
 from jev_diagnostics.workflow.approvals import approve_and_run
 from jev_diagnostics.workflow.state_service import share
 from jev_diagnostics.workflow.storage import Store
@@ -96,9 +97,35 @@ class StoryWorldTests(unittest.TestCase):
         edited = dict(original["case"], instructions="My saved variation")
         save_case(original["folder"], edited)
         reopened = create_saved_case(store, "lantern-room")
+        reopened_again = create_saved_case(store, "lantern-room")
         self.assertNotEqual(reopened["folder"], original["folder"])
+        self.assertEqual(reopened_again, reopened)
         self.assertEqual(load_case(original["folder"])["instructions"], "My saved variation")
         self.assertEqual(reopened["case"], workbench_case("lantern-room"))
+        with store.transaction() as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM cases").fetchone()[0], 2)
+        folders = [path for path in (self.root / "story-worlds").iterdir() if path.is_dir()]
+        self.assertEqual(len(folders), 2)
+
+    def test_opening_a_world_does_not_reuse_an_archived_pristine_copy(self):
+        store = Store(self.root / "workflow.sqlite3")
+        original = create_saved_case(store, "lantern-room")
+        save_case(original["folder"], dict(original["case"], instructions="My saved variation"))
+        archived = create_saved_case(store, "lantern-room")
+        with store.transaction() as db:
+            archived_id = db.execute("SELECT id FROM cases WHERE source=?",
+                                     (archived["folder"],)).fetchone()["id"]
+        library.set_archived(store, archived_id, True)
+
+        active = create_saved_case(store, "lantern-room")
+
+        self.assertNotEqual(active["folder"], archived["folder"])
+        self.assertEqual(create_saved_case(store, "lantern-room"), active)
+        with store.transaction() as db:
+            active_id = db.execute("SELECT id FROM cases WHERE source=?",
+                                   (active["folder"],)).fetchone()["id"]
+            self.assertFalse(library.metadata(db, active_id).get("archived"))
+            self.assertEqual(db.execute("SELECT count(*) FROM cases").fetchone()[0], 3)
 
     def test_exact_story_proposal_runs_only_after_desktop_approval(self):
         store, case, tools, result = self.submit("lantern-room")
@@ -108,6 +135,10 @@ class StoryWorldTests(unittest.TestCase):
         self.assertEqual(outcome["verification"]["status"], "passed")
         self.assertEqual(len(outcome["verification"]["assertions"]), 5)
         self.assertTrue(all(item["passed"] for item in outcome["checks"]["observations"]))
+        history = library.timeline(store, case["case_id"])["events"]
+        run = next(item for item in history if item["kind"] == "assistant_check")
+        self.assertIn("The Lantern Room", run["summary"])
+        self.assertNotIn("guest-access", run["summary"])
 
     def test_wrong_decision_is_preserved_as_a_failed_fixture_result(self):
         expected, rationale = proposal_values("museum-of-tiny-planets")
