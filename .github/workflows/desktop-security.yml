@@ -1,0 +1,98 @@
+name: Desktop build and security scan
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '37 8 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-desktop:
+    name: Windows desktop build
+    runs-on: windows-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Check out the proposed code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Restore the pinned Qt SDK
+        id: qt-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v6.1.0
+        with:
+          path: .qt/6.8.3/msvc2022_64
+          key: qt-windows-6.8.3-msvc2022-64-v1
+      - name: Install pinned build tools
+        run: python -m pip install --disable-pip-version-check aqtinstall==3.3.0 cmake==3.31.6
+      - name: Install the pinned Qt SDK
+        if: steps.qt-cache.outputs.cache-hit != 'true'
+        run: >-
+          python -m aqt install-qt windows desktop 6.8.3 win64_msvc2022_64
+          -O .qt --archives qtbase qtdeclarative qtshadertools qttools qttranslations
+      - name: Add Qt to the executable path
+        shell: pwsh
+        run: |
+          $qtBin = Join-Path $env:GITHUB_WORKSPACE '.qt\6.8.3\msvc2022_64\bin'
+          $qtBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Initialize C++ security analysis
+        uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
+        with:
+          languages: c-cpp
+          build-mode: manual
+      - name: Configure the desktop build
+        shell: pwsh
+        run: >-
+          python -m cmake -S . -B build-ci -G 'Visual Studio 17 2022' -A x64
+          '-DCMAKE_PREFIX_PATH=${{ github.workspace }}\.qt\6.8.3\msvc2022_64'
+      - name: Compile the desktop application
+        run: python -m cmake --build build-ci --config Release --parallel 4
+      - name: Run native unit checks
+        run: python -m cmake --build build-ci --config Release --target RUN_TESTS
+      - name: Run the desktop-to-Python smoke check
+        env:
+          JEV_PYTHON: ${{ env.pythonLocation }}\python.exe
+        run: .\build-ci\Release\JevWorkbench.exe --smoke-test
+      - name: Complete C++ security analysis
+        uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
+        with:
+          category: /language:c-cpp
+
+  python-codeql:
+    name: Python CodeQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Check out the proposed code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Initialize Python security analysis
+        uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
+        with:
+          languages: python
+          build-mode: none
+      - name: Complete Python security analysis
+        uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
+        with:
+          category: /language:python
