@@ -37,3 +37,9 @@ before changing external settings. Distinguish saved configuration, observed too
 activity, account identity, and case sharing. Automatically surface proposals and
 results without replacing unsaved editor content. Every blocked or completed
 action needs an explanation and a useful next step.
+
+Saved cases are selected from a readable catalogue. Case history combines
+assistant proposals, approvals, observed sample checks, and Jev assessments while
+keeping their meanings distinct. Reuse samples by default; creating another one
+is explicit. Archive retains files and history and revokes sharing; restore does
+not reconnect assistants. Never infer case ownership from a repeated title.

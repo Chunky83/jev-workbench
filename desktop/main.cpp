@@ -15,6 +15,8 @@
 #include <QTimer>
 #include <QQuickItem>
 #include <QMouseEvent>
+#include <QMessageBox>
+#include <functional>
 #include <QTemporaryDir>
 #include <QFile>
 #include <QDir>
@@ -31,7 +33,7 @@ int main(int argc, char *argv[]) {
     app.setOrganizationName("JevWorkbench");
     app.setApplicationName(app.arguments().contains("--local-preview") ? "Jev Workbench Preview" : "Jev Workbench");
     app.setApplicationVersion(JEV_VERSION);
-    if (app.arguments().contains("--workspace-ui-smoke") || app.arguments().contains("--ui-smoke") || app.arguments().contains("--workflow-ui-smoke") || app.arguments().contains("--sharing-ui-smoke") || app.arguments().contains("--setup-ui-smoke") || app.arguments().contains("--diagnostics-ui-smoke") || app.arguments().contains("--inbox-ui-smoke")) QStandardPaths::setTestModeEnabled(true);
+    if (app.arguments().contains("--case-library-ui-smoke") || app.arguments().contains("--workspace-ui-smoke") || app.arguments().contains("--ui-smoke") || app.arguments().contains("--workflow-ui-smoke") || app.arguments().contains("--sharing-ui-smoke") || app.arguments().contains("--setup-ui-smoke") || app.arguments().contains("--diagnostics-ui-smoke") || app.arguments().contains("--inbox-ui-smoke")) QStandardPaths::setTestModeEnabled(true);
     Workbench workbench;
     if (app.arguments().contains("--smoke-test")) return workbench.smokeCheck() ? 0 : 1;
     QQmlApplicationEngine engine;
@@ -57,6 +59,101 @@ int main(int argc, char *argv[]) {
         });
         QTimer::singleShot(250, &app, [&] { QMetaObject::invokeMethod(engine.rootObjects().value(0), "openConnections"); });
     }
+    QTimer libraryTimer;
+    int libraryStage = 0;
+    QString libraryFirst, librarySecond, librarySecondFolder, libraryDraft;
+    if (arguments.contains("--case-library-ui-smoke")) {
+        auto fail = [&](int code, const QString &message) { qWarning() << "Case library stage" << libraryStage << message; libraryTimer.stop(); app.exit(code); };
+        QObject::connect(&workbench, &Workbench::failed, &app, [fail](const QString &text) { fail(110, text); });
+        libraryTimer.setInterval(180);
+        QObject::connect(&libraryTimer, &QTimer::timeout, &app, [&, fail] {
+            if (workbench.busy()) return;
+            auto window = qobject_cast<QQuickWindow *>(engine.rootObjects().value(0));
+            auto panel = window->findChild<QQuickItem *>("caseLibraryPanel");
+            auto editor = window->findChild<QObject *>("INSTRUCTIONSEditor");
+            auto shared = QJsonDocument::fromJson(workbench.workflowView().toUtf8()).object()["case"].toObject();
+            auto cases = QJsonDocument::fromJson(workbench.caseLibraryView().toUtf8()).object()["cases"].toArray();
+            auto history = QJsonDocument::fromJson(workbench.caseHistoryView().toUtf8()).object();
+            auto capture = [&](const QString &flag) {
+                auto index = arguments.indexOf(flag);
+                return index < 0 || window->grabWindow().save(arguments.value(index + 1));
+            };
+            if (libraryStage == 0) {
+                libraryStage = 1; workbench.openSample(false);
+            } else if (libraryStage == 1) {
+                if (shared.isEmpty()) return;
+                libraryFirst = shared["case_id"].toString(); libraryStage = 2;
+                workbench.openSample(false);
+            } else if (libraryStage == 2) {
+                if (shared["case_id"].toString() != libraryFirst) { fail(111, "Sample reuse changed identity"); return; }
+                libraryStage = 3; workbench.previewFixture();
+            } else if (libraryStage == 3) {
+                librarySecond = shared["case_id"].toString(); librarySecondFolder = workbench.caseFolder();
+                if (librarySecond == libraryFirst) { fail(112, "Explicit new sample reused old case"); return; }
+                libraryStage = 4;
+                QVariant doc; QMetaObject::invokeMethod(window, "document", Q_RETURN_ARG(QVariant, doc));
+                workbench.evaluate(doc.toString(), "local");
+            } else if (libraryStage == 4) {
+                editor->setProperty("text", editor->property("text").toString() + "\nKeep this unsaved edit while reading history.");
+                libraryDraft = editor->property("text").toString(); libraryStage = 5;
+                QMetaObject::invokeMethod(window, "openCaseHistory", Q_ARG(QVariant, librarySecond));
+            } else if (libraryStage == 5) {
+                if (history["case"].toObject()["case_id"].toString() != librarySecond) return;
+                bool local = false, proposal = false;
+                for (const auto &value : history["events"].toArray()) {
+                    auto item = value.toObject();
+                    local |= item["kind"].toString() == "local_check" && item["verification"].toString() == "Passed";
+                    proposal |= item["kind"].toString() == "proposal";
+                }
+                if (!local || !proposal || !window->property("dirty").toBool() || editor->property("text").toString() != libraryDraft) { fail(113, "Mixed history or draft missing"); return; }
+                std::function<QQuickItem *(QQuickItem *)> findHistoryAction = [&](QQuickItem *item) -> QQuickItem * {
+                    if (item->objectName() == "showFirstHistoryEvent") return item;
+                    for (auto child : item->childItems()) if (auto found = findHistoryAction(child)) return found;
+                    return nullptr;
+                };
+                auto first = findHistoryAction(window->contentItem());
+                if (!first) { fail(114, "History action missing"); return; }
+                QMetaObject::invokeMethod(first, "clicked");
+                const QRectF bounds(0, 0, window->width(), window->height());
+                for (const auto &name : {"caseLibraryPanel", "closeCaseLibrary", "runButton", "workspaceEditors"}) {
+                    auto item = window->findChild<QQuickItem *>(name);
+                    if (!item || !item->isVisible() || !bounds.contains(QRectF(item->mapToScene(QPointF(0, 0)), QSizeF(item->width(), item->height())))) { fail(115, "Control outside window"); return; }
+                }
+                libraryStage = 6;
+            } else if (libraryStage == 6) {
+                if (!capture("--capture")) { fail(116, "History capture failed"); return; }
+                libraryStage = 7; QMetaObject::invokeMethod(window, "openCases");
+            } else if (libraryStage == 7) {
+                if (cases.size() != 2) { fail(117, "Case list omitted duplicate title or added a sample"); return; }
+                if (!capture("--capture-cases")) { fail(118, "Case list capture failed"); return; }
+                // Cancel the real native discard confirmation and keep the current document.
+                QTimer::singleShot(50, &app, [&] {
+                    for (auto widget : QApplication::topLevelWidgets())
+                        if (auto dialog = qobject_cast<QMessageBox *>(widget)) dialog->reject();
+                });
+                QMetaObject::invokeMethod(window, "openSavedCase", Q_ARG(QVariant, libraryFirst));
+                if (workbench.caseFolder() != librarySecondFolder || editor->property("text").toString() != libraryDraft || !window->property("dirty").toBool()) { fail(119, "Cancelled switch lost draft"); return; }
+                window->setProperty("dirty", false); libraryStage = 8;
+                QMetaObject::invokeMethod(window, "openSavedCase", Q_ARG(QVariant, libraryFirst));
+            } else if (libraryStage == 8) {
+                if (shared["case_id"].toString() != libraryFirst) return;
+                if (workbench.caseFolder() == librarySecondFolder || window->property("dirty").toBool()) { fail(120, "Saved-case selection failed"); return; }
+                libraryStage = 9;
+                workbench.workflow("archive_case", QString::fromUtf8(QJsonDocument(QJsonObject{{"case_id", librarySecond}, {"archived", false}}).toJson()));
+            } else if (libraryStage == 9) {
+                if (cases.size() != 1 || cases[0].toObject()["case_id"].toString() != libraryFirst) { fail(121, "Archive did not remove selected case"); return; }
+                libraryStage = 10;
+                workbench.workflow("restore_case", QString::fromUtf8(QJsonDocument(QJsonObject{{"case_id", librarySecond}, {"archived", false}}).toJson()));
+            } else if (libraryStage == 10) {
+                if (cases.size() != 2) { fail(122, "Restore failed"); return; }
+                for (const auto &item : cases) if (item.toObject()["case_id"].toString() == librarySecond && !item.toObject()["shared_with"].toArray().isEmpty()) { fail(123, "Restore silently shared case"); return; }
+                libraryTimer.stop(); app.exit(0);
+            }
+        });
+        libraryTimer.start();
+        QTimer::singleShot(30000, &app, [fail] { fail(124, "Timed out"); });
+    }
+
     int sharingStage = 0;
     QTemporaryDir setupProfile;
     int setupStage = 0;
@@ -508,7 +605,7 @@ int main(int argc, char *argv[]) {
             QMetaObject::invokeMethod(runButton, "clicked");
         });
         QTimer::singleShot(15000, &app, [&] { app.exit(9); });
-    } else if (arguments.contains("--capture")) {
+    } else if (arguments.contains("--capture") && !arguments.contains("--case-library-ui-smoke")) {
         if (arguments.contains("--capture-connections")) {
             QTimer::singleShot(400, &app, [&] {
                 QMetaObject::invokeMethod(engine.rootObjects().value(0), "openConnections");

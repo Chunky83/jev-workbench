@@ -8,6 +8,8 @@
 
 class Workbench : public QObject {
     Q_OBJECT
+    Q_PROPERTY(QString caseLibraryView READ caseLibraryView NOTIFY caseLibraryChanged)
+    Q_PROPERTY(QString caseHistoryView READ caseHistoryView NOTIFY caseHistoryChanged)
     Q_PROPERTY(QString inboxView READ inboxView NOTIFY inboxChanged)
     Q_PROPERTY(QString reviewView READ reviewView NOTIFY reviewChanged)
     Q_PROPERTY(QString inboxStatus READ inboxStatus NOTIFY inboxChanged)
@@ -29,6 +31,8 @@ public:
     void setTheme(const QString &value);
     QString workflowView() const { return m_workflowView; }
     QString connectorStatus() const { return m_connectorStatus; }
+    QString caseLibraryView() const { return m_caseLibraryView; }
+    QString caseHistoryView() const { return m_caseHistoryView; }
     QString inboxView() const { return m_inboxView; }
     QString reviewView() const { return m_reviewView; }
     QString inboxStatus() const { return m_inboxStatus; }
@@ -40,6 +44,7 @@ public:
     Q_INVOKABLE void copyConnectionPrompt();
     Q_INVOKABLE void copyProposalPrompt();
     Q_INVOKABLE void previewFixture();
+    Q_INVOKABLE void openSample(bool fresh);
     Q_INVOKABLE void workflow(const QString &operation, const QString &parameters = "{}");
     Q_INVOKABLE QString connectorCommand(const QString &host) const;
     Q_INVOKABLE QString initialCase() const;
@@ -55,6 +60,8 @@ public:
     Q_INVOKABLE bool confirmDiscard();
     Q_INVOKABLE bool smokeCheck();
 signals:
+    void caseLibraryChanged();
+    void caseHistoryChanged();
     void inboxChanged();
     void reviewChanged();
     void workflowChanged();
@@ -89,6 +96,7 @@ private:
     QByteArray m_output;
     QString m_folder, m_status = "Ready. Start with the local checks.", m_key, m_theme;
     QString m_action, m_pendingFolder;
+    QString m_caseLibraryView = "{}", m_caseHistoryView = "{}";
     QString m_workflowView = "{}", m_connectorStatus = "Assistants: setup required | Jev allowance: off";
     QString m_workflowCase, m_workflowOperation;
     bool m_cancelled = false;

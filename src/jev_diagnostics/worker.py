@@ -28,6 +28,11 @@ def run_case(message):
     mode = message.get("mode")
     if mode not in ("local", "live"):
         raise ValueError("Choose Local checks or Live Jev.")
+    from .workflow.storage import Store, digest
+    case_id = ''
+    if message.get('activity_database') and message.get('folder'):
+        from .workflow.library import register
+        case_id = register(Store(message['activity_database']), message['folder'])
     run_root = Path(message["runs_folder"]).resolve()
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8]
     folder = run_root / run_id
@@ -42,6 +47,11 @@ def run_case(message):
     result = {"run_id": run_id, "title": case["title"], "mode": mode,
               "folder": str(folder), "status": "running", "verification": "Not performed"}
     atomic_text(folder / "result.json", json_text(result))
+    result['created_at'] = datetime.now(timezone.utc).isoformat()
+    result['input_hash'] = digest(case)
+    if case_id:
+        result['case_id'] = case_id
+    atomic_text(folder / 'result.json', json_text(result))
     start = time.monotonic()
     try:
         if mode == "local":
@@ -74,10 +84,17 @@ def _dispatch(message):
     if action == "workflow":
         from .workflow.desktop_service import dispatch as workflow_dispatch
         return workflow_dispatch(message)
-    if action == "open":
-        return {"case": load_case(message["folder"]), "folder": message["folder"]}
-    if action == "save":
-        return {"folder": save_case(message["folder"], message["case"])}
+    if action in ('open', 'save'):
+        if action == 'open':
+            saved = load_case(message['folder'])
+        else:
+            save_case(message['folder'], message['case'])
+            saved = message['case']
+        if message.get('activity_database'):
+            from .workflow.storage import Store
+            from .workflow.library import register
+            register(Store(message['activity_database']), message['folder'], saved)
+        return {'folder': message['folder'], **({'case': saved} if action == 'open' else {})}
     if action == "preview":
         return {"request": request_for(message["case"])}
     if action == "run":
