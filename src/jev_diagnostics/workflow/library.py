@@ -13,6 +13,20 @@ def metadata(db, case_id):
     return json.loads(row['payload']) if row else {}
 
 
+def local_run_change_state(store):
+    """Return cheap file metadata that changes when visible desktop run results do."""
+    paths = sorted((store.path.parent / 'runs').glob('*/result.json'), reverse=True)[:1000]
+    state = []
+    for path in paths:
+        try:
+            details = path.stat()
+            state.append((path.parent.name, details.st_size, details.st_mtime_ns,
+                          details.st_ctime_ns, details.st_ino))
+        except OSError:
+            state.append((path.parent.name, None))
+    return state
+
+
 def put_metadata(db, case_id, value):
     db.execute('INSERT OR REPLACE INTO desktop_case_meta VALUES (?,?)', (case_id, encode(value)))
 

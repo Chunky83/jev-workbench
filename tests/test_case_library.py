@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from jev_diagnostics.case_store import save_case, load_case
+from jev_diagnostics.case_store import atomic_text, json_text, save_case, load_case
 from jev_diagnostics.worker import dispatch
 from jev_diagnostics.workflow import library
 from jev_diagnostics.workflow.storage import Store, digest
@@ -187,16 +187,22 @@ class CaseLibraryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             library.timeline(self.store, item['case_id'])
 
-    def test_delivery_token_changes_for_history_updates_but_not_history_reads(self):
+    def test_delivery_token_changes_for_run_file_updates_but_not_history_reads(self):
         from jev_diagnostics.workflow.inbox import snapshot
         self.worker(action='open', folder=str(self.folder))
         case = library.list_cases(self.store)['cases'][0]
         before = snapshot(self.store)['change_token']
         library.timeline(self.store, case['case_id'])
         self.assertEqual(snapshot(self.store)['change_token'], before)
-        self.worker(action='run', case=self.case, mode='local', folder=str(self.folder),
-                    runs_folder=str(self.root / 'runs'))
-        self.assertNotEqual(snapshot(self.store)['change_token'], before)
+        result_path = self.root / 'runs' / 'run-one' / 'result.json'
+        result_path.parent.mkdir(parents=True)
+        running = {'run_id': 'run-one', 'case_id': case['case_id'], 'status': 'running'}
+        atomic_text(result_path, json_text(running))
+        started = snapshot(self.store)['change_token']
+        self.assertNotEqual(started, before)
+        self.assertEqual(snapshot(self.store)['change_token'], started)
+        atomic_text(result_path, json_text(dict(running, status='completed')))
+        self.assertNotEqual(snapshot(self.store)['change_token'], started)
 
     def test_missing_source_and_bad_identity_are_actionable(self):
         case = share(self.store, self.folder, [])

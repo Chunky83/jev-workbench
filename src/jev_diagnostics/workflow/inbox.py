@@ -9,7 +9,7 @@ def snapshot(store):
         rows = db.execute("SELECT id,case_id FROM records WHERE kind='proposal' ORDER BY rowid DESC LIMIT 500").fetchall()
         approved = {json.loads(row['payload'])['proposal_id'] for row in db.execute("SELECT payload FROM records WHERE kind='approval'")}
         items = []
-        from .library import metadata
+        from .library import metadata, local_run_change_state
         for row in rows:
             if metadata(db, row['case_id']).get('archived'):
                 continue
@@ -32,7 +32,7 @@ def snapshot(store):
                      for row in db.execute('SELECT id,payload FROM cases ORDER BY id')]
         metadata_rows = [tuple(row) for row in db.execute('SELECT * FROM desktop_case_meta ORDER BY case_id')]
         newest_record = db.execute('SELECT MAX(rowid) FROM records').fetchone()[0]
-        change_token = digest([revisions, metadata_rows, newest_record])
+        change_token = digest([revisions, metadata_rows, newest_record, local_run_change_state(store)])
         return {'workspace_id': workspace_id, 'change_token': change_token, 'proposals': items,
                 'limit': 500, 'notice': 'Showing the latest 500 submissions.' if len(rows) == 500 else ''}
 
