@@ -25,7 +25,7 @@ def approve_and_run(store, case_id, revision, proposal_id, proposal_hash):
         run = store.add(db, case_id, 'run', {'proposal_id': proposal_id, 'approval_id': approval['id'],
             'revision': revision, 'status': 'running', 'verification': 'Not performed'})
     try:
-        outcome = execute(proposal['check_id'])
+        outcome = execute(proposal['check_id'], proposal.get('inputs'))
         result = {'run_id': run['id'], 'status': 'completed', **outcome}
     except Exception:
         result = {'run_id': run['id'], 'status': 'failed', 'verification': 'Not performed',

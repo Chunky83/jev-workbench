@@ -55,6 +55,8 @@ def run_case(message):
     start = time.monotonic()
     try:
         if mode == "local":
+            if runner["check"] != "guest_access_fixture":
+                raise ValueError("Story-world fixtures run only from an exact assistant proposal after desktop approval.")
             iterations = []
             for iteration in range(runner["iterations"]):
                 checks = run_guest_fixture()

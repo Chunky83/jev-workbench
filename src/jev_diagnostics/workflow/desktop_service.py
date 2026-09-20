@@ -10,8 +10,11 @@ def dispatch(message):
     store = Store(message['database'])
     operation = message.get('operation', 'status')
     folder = message.get('folder', '')
-    if operation in ('case_list', 'case_history', 'open_case', 'archive_case', 'restore_case'):
+    if operation in ('case_list', 'case_history', 'open_case', 'archive_case', 'restore_case', 'story_world'):
         from . import library
+        if operation == 'story_world':
+            from .story_worlds import create_saved_case
+            return {'opened_case': create_saved_case(store, message['world_id'])}
         if operation == 'open_case':
             return {'opened_case': library.open_case(store, message['case_id'])}
         if operation == 'case_history':

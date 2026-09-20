@@ -23,6 +23,9 @@ $zipName = (Get-ChildItem -LiteralPath $runtime -Filter 'python*.zip' | Select-O
 $worker = Join-Path $packageRoot 'worker\jev_diagnostics'
 New-Item -ItemType Directory -Force $worker | Out-Null
 Copy-Item -Path (Join-Path $projectRoot 'src\jev_diagnostics\*') -Destination $worker -Recurse -Force
+$storyWorlds = Join-Path $packageRoot 'test-kits\four-worlds'
+New-Item -ItemType Directory -Force $storyWorlds | Out-Null
+Copy-Item -Path (Join-Path $projectRoot 'test-kits\four-worlds\*') -Destination $storyWorlds -Recurse -Force
 $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
 $vsRoot = & $vswhere -latest -products '*' -property installationPath
 $redistRoot = Join-Path $vsRoot 'VC\Redist\MSVC'

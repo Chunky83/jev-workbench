@@ -45,6 +45,7 @@ public:
     Q_INVOKABLE void copyProposalPrompt();
     Q_INVOKABLE void previewFixture();
     Q_INVOKABLE void openSample(bool fresh);
+    Q_INVOKABLE void openStoryWorld(const QString &worldId);
     Q_INVOKABLE void workflow(const QString &operation, const QString &parameters = "{}");
     Q_INVOKABLE QString connectorCommand(const QString &host) const;
     Q_INVOKABLE QString initialCase() const;
