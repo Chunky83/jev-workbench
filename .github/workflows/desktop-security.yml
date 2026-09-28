@@ -53,7 +53,7 @@ jobs:
           $qtBin = Join-Path $env:GITHUB_WORKSPACE '.qt\6.8.3\msvc2022_64\bin'
           $qtBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Initialize C++ security analysis
-        uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
+        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
         with:
           languages: c-cpp
           build-mode: manual
@@ -88,7 +88,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Initialize Python security analysis
-        uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
+        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4
         with:
           languages: python
           build-mode: none
