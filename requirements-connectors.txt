@@ -18,7 +18,7 @@ pydantic==2.13.5
 # pydantic declares its exact compatible pydantic-core version.
 # Keep the core package transitive so Dependabot cannot update it alone.
 pydantic-settings==2.15.0
-PyJWT==2.14.0
+PyJWT==2.15.0
 python-dotenv==1.2.3
 python-multipart==0.0.32
 pywin32==312; sys_platform == "win32"
